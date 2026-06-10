@@ -168,7 +168,22 @@ const additions = {
       models: modelAllowlist,
       skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
     },
-    list: [{ id: "main", default: true }],
+    list: [
+      {
+        // Agente principal — maneja cerebro, documentos y desarrollo
+        id: "main",
+        default: true,
+        skills: ["second-brain", "pdf-extractor", "dev-assistant"],
+      },
+      {
+        // Agente especializado en finanzas — modelo más rápido para respuestas cortas
+        id: "finanzas",
+        skills: ["expense-tracker"],
+        model: {
+          primary: hasGroq ? "groq/llama-3.1-8b-instant" : primaryModel,
+        },
+      },
+    ],
   },
   session: {
     dmScope: "per-channel-peer",
