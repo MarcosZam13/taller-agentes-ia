@@ -158,6 +158,12 @@ if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "
 
 const additions = {
   models: { providers },
+  gateway: {
+    // Permite que el vault dashboard (file:// y localhost) conecte al WS
+    controlUi: {
+      allowedOrigins: ["null", "http://localhost:3000", "http://127.0.0.1:3000"],
+    },
+  },
   agents: {
     defaults: {
       workspace: "~/.openclaw/workspace",

@@ -1,0 +1,10 @@
+{
+  "name": "vault-relay",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Relay entre el gateway de OpenClaw y el vault dashboard",
+  "private": true,
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

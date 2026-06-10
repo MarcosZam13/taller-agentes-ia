@@ -313,7 +313,7 @@ body::after {
     <div id="feed"></div>
     <div class="sb-stat">
       <div class="sbr"><span class="k">GATEWAY</span><span class="v" id="sb-gw">CONECTANDO</span></div>
-      <div class="sbr"><span class="k">MODELO</span><span class="v">Groq Llama 70B</span></div>
+      <div class="sbr"><span class="k">MODELO</span><span class="v" id="sb-model">Groq Llama 70B</span></div>
       <div class="sbr"><span class="k">TELEGRAM</span><span class="v" id="sb-tg">activo</span></div>
       <div class="sbr"><span class="k">SKILLS</span><span class="v">4 cargados</span></div>
     </div>
@@ -363,6 +363,7 @@ const ROOMS = [
 
 const S = {
   connected: false, totalMsgs: 0, start: Date.now(), ws: null,
+  hasRelayData: false,
   rooms: Object.fromEntries(ROOMS.map(r => [r.id, { status:'standby', activity:0, msgs:0 }])),
 };
 
@@ -460,10 +461,27 @@ async function checkGW() {
 }
 
 async function init() {
+  // Intentar relay primero (resuelve CORS desde file://)
+  try {
+    const r = await fetch('http://127.0.0.1:3001/events', { signal: AbortSignal.timeout(2500) });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.connected) {
+        setOnline();
+        document.getElementById('overlay').classList.add('gone');
+        log('Relay activo · VAULT ONLINE');
+        startupSeq();
+        tryWS();
+        return;
+      }
+    }
+  } catch(_) {}
+
+  // Fallback: gateway directo
   const alive = await checkGW();
   if (!alive) {
-    document.getElementById('conn-d').textContent = 'Gateway no responde · bash setup/open-dashboard.sh';
-    setOffline(); setTimeout(init, 10000); return;
+    document.getElementById('conn-d').textContent = 'Iniciar relay: node demo/vault/relay.mjs';
+    setOffline(); setTimeout(init, 8000); return;
   }
   setOnline();
   document.getElementById('overlay').classList.add('gone');
@@ -495,6 +513,65 @@ function onWsMsg(raw) {
     activate(room.id, text, dir);
   } catch(_) {}
 }
+
+// ── Relay polling — datos reales de OpenClaw ──────────────────────────────────
+let _lastEvTs = 0;
+function mapAgentRoom(agentId) {
+  const id = (agentId || '').toLowerCase();
+  return ROOMS.find(r => id.includes(r.id) || id.includes(r.skill)) || ROOMS[0];
+}
+
+async function pollRelay() {
+  try {
+    const res = await fetch('http://127.0.0.1:3001/events', { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // Estado de conexión
+    if (data.connected && !S.connected) {
+      setOnline();
+      document.getElementById('overlay').classList.add('gone');
+      log('Relay activo · datos reales en vivo');
+    } else if (!data.connected && S.connected) {
+      setOffline();
+    }
+
+    // Contador real de agentes
+    if (Array.isArray(data.agents) && data.agents.length) {
+      document.getElementById('st-agents').textContent = data.agents.length;
+    }
+
+    // Mensajes totales reales
+    if (typeof data.stats?.totalMsgs === 'number' && data.stats.totalMsgs > S.totalMsgs) {
+      S.totalMsgs = data.stats.totalMsgs;
+      updateStats();
+    }
+
+    // Modelo real
+    if (data.stats?.model) {
+      const m = data.stats.model.replace('groq/', '').replace('-versatile', '').replace('llama-', 'Llama ');
+      document.getElementById('sb-model').textContent = m;
+    }
+
+    // Eventos nuevos (el relay los ordena del más reciente al más viejo)
+    const newEvts = (data.events || []).filter(e => e.ts > _lastEvTs);
+    if (newEvts.length) {
+      _lastEvTs = newEvts[0].ts; // ts más alto = evento más reciente
+      S.hasRelayData = true;
+      newEvts.reverse().forEach(evt => { // procesar del más viejo al más nuevo
+        const room = mapAgentRoom(evt.agentId);
+        if (evt.type === 'message' && evt.text) {
+          activate(room.id, evt.text, evt.dir || 'agent');
+        } else if (evt.type === 'thinking') {
+          S.rooms[room.id].status = 'active';
+          S.rooms[room.id].activity = 40 + Math.random() * 35;
+          updateCard(room.id);
+        }
+      });
+    }
+  } catch(_) {}
+}
+setInterval(pollRelay, 3000);
 
 function activate(id, text, dir) {
   S.totalMsgs++;
@@ -557,7 +634,7 @@ const DEMO = {
 
 setInterval(() => {
   if (!S.connected) return;
-  if (S.ws && S.ws.readyState === 1) return; // WS real activo, no simular
+  if ((S.ws && S.ws.readyState === 1) || S.hasRelayData) return; // datos reales activos, no simular
   const ids = ROOMS.map(r => r.id);
   const id = ids[Math.floor(Math.random() * ids.length)];
   const msgs = DEMO[id];
