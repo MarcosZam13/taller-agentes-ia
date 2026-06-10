@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TALLER AGENTES IA — VAULT CONTROL</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #050810;
+    --green: #22c55e;
+    --green-dim: #4ade80;
+    --text: #a0ffa0;
+    --amber: #f59e0b;
+    --cyan: #22d3ee;
+    --violet: #a855f7;
+    --lime: #84cc16;
+    --red: #f43f5e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Starfield */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 35% 60%, rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 25%, rgba(255,255,255,.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 70%, rgba(255,255,255,.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 85%, rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 90%, rgba(255,255,255,.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 40%, rgba(255,255,255,.3) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline sweep */
+  body::after {
+    content: '';
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(transparent, rgba(34,197,94,.15), transparent);
+    animation: scanline 4s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes scanline {
+    0%   { top: -2px; }
+    100% { top: 100vh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body::after { animation: none; }
+  }
+
+  /* HUD BAR */
+  #hud {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    height: 58px;
+    background: linear-gradient(180deg, #0a1a0a 0%, #060e06 100%);
+    border-bottom: 1px solid rgba(34,197,94,.3);
+    flex-wrap: wrap;
+  }
+
+  #hud-logo {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+    border-right: 1px solid rgba(34,197,94,.3);
+    padding-right: 12px;
+    min-width: 130px;
+  }
+  #hud-logo .title { color: var(--green); font-size: 13px; letter-spacing: 2px; }
+  #hud-logo .sub   { color: #4a7a4a; font-size: 10px; letter-spacing: 1px; }
+
+  .hud-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 10px;
+    gap: 2px;
+    padding: 0 10px;
+    border-right: 1px solid rgba(34,197,94,.15);
+  }
+  .hud-stat .val { color: var(--green); font-size: 14px; }
+  .hud-stat .lbl { color: #4a7a4a; letter-spacing: 1px; }
+
+  .hud-bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 100px;
+    padding: 0 10px;
+    border-right: 1px solid rgba(34,197,94,.15);
+  }
+  .hud-bar-row { display: flex; align-items: center; gap: 6px; font-size: 9px; }
+  .hud-bar-row .lbl { color: #4a7a4a; width: 50px; letter-spacing: 1px; }
+  .hud-bar-track { flex: 1; height: 4px; background: #111; border-radius: 2px; overflow: hidden; }
+  .hud-bar-fill  { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+  #hud-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+  }
+  #hud-status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  #hud-status.offline .dot { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
+  #hud-status.offline    { color: var(--red); }
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: .3; }
+  }
+
+  /* MAIN */
+  main {
+    position: relative;
+    z-index: 2;
+    padding: 20px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .floor {
+    margin-bottom: 24px;
+  }
+  .floor-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #2d4d2d;
+    margin-bottom: 10px;
+    padding-left: 4px;
+    border-left: 2px solid rgba(34,197,94,.2);
+  }
+  .floor-rooms {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  /* ROOM CARD */
+  .room {
+    position: relative;
+    width: 200px;
+    height: 170px;
+    border: 1px solid var(--accent, var(--green));
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: filter .2s ease;
+    flex-shrink: 0;
+  }
+  .room:hover { filter: brightness(1.2); }
+
+  .room-bg {
+    position: absolute;
+    inset: 0;
+    background: var(--room-bg, linear-gradient(135deg, #0a0f0a 0%, #050810 100%));
+    animation: kenpan 20s ease-in-out infinite alternate;
+    background-size: 110%;
+  }
+  @keyframes kenpan {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+  }
+
+  .room-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 120px 80px at 50% 20%, var(--accent-glow, rgba(34,197,94,.15)) 0%, transparent 70%);
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%,100% { opacity: .7; }
+    50%      { opacity: 1.0; }
+  }
+
+  .room-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 50%, rgba(0,0,0,.7) 100%);
+  }
+
+  /* Character sprite */
+  .room-char {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 52px;
+    height: 52px;
+    image-rendering: pixelated;
+    animation: bob 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.8));
+  }
+  @keyframes bob {
+    0%,100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(-5px); }
+  }
+  .room.active .room-char { animation: bob-fast 1s ease-in-out infinite; }
+  @keyframes bob-fast {
+    0%,100% { transform: translateX(-50%) translateY(0); }
+    50%      { transform: translateX(-50%) translateY(-7px); }
+  }
+
+  .room-name {
+    position: absolute;
+    bottom: 14px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--accent, var(--green));
+    text-shadow: 0 0 10px var(--accent, var(--green)), 0 0 20px var(--accent, var(--green));
+  }
+  .room-role {
+    position: absolute;
+    bottom: 4px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: #4a6a4a;
+  }
+
+  /* Status badge */
+  .room-status {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .room-status .sdot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4a6a4a;
+  }
+  .room-status.standby { color: #4a6a4a; }
+  .room-status.active  { color: var(--accent, var(--green)); }
+  .room-status.active .sdot {
+    background: var(--accent, var(--green));
+    box-shadow: 0 0 4px var(--accent, var(--green));
+    animation: blink .8s ease-in-out infinite;
+  }
+
+  /* Activity bar */
+  .room-progress {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #0a0f0a;
+  }
+  .room-progress-fill {
+    height: 100%;
+    background: var(--accent, var(--green));
+    box-shadow: 0 0 6px var(--accent, var(--green));
+    transition: width 1s ease;
+  }
+
+  /* Message counter badge */
+  .room-count {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 9px;
+    color: #2d4d2d;
+    letter-spacing: 1px;
+  }
+
+  /* MODAL */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal {
+    background: #090d09;
+    border: 1px solid var(--modal-accent, var(--green));
+    box-shadow: 0 0 30px var(--modal-accent, rgba(34,197,94,.3));
+    padding: 24px 28px;
+    min-width: 320px;
+    max-width: 480px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  #modal h2 {
+    color: var(--modal-accent, var(--green));
+    text-shadow: 0 0 10px var(--modal-accent, var(--green));
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+  }
+  #modal .modal-role  { color: #4a7a4a; font-size: 10px; letter-spacing: 2px; margin-bottom: 16px; }
+  #modal .modal-row   { display: flex; justify-content: space-between; border-bottom: 1px solid #0f1f0f; padding: 6px 0; }
+  #modal .modal-key   { color: #4a7a4a; }
+  #modal .modal-val   { color: var(--modal-accent, var(--green)); }
+  #modal .modal-close { margin-top: 16px; text-align: right; }
+  #modal .modal-close button {
+    background: none;
+    border: 1px solid var(--modal-accent, var(--green));
+    color: var(--modal-accent, var(--green));
+    padding: 4px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+  }
+  #modal .modal-close button:hover { background: rgba(34,197,94,.1); }
+
+  /* LOG STRIP */
+  #log-strip {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 28px;
+    background: linear-gradient(180deg, #060e06 0%, #040904 100%);
+    border-top: 1px solid rgba(34,197,94,.15);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    z-index: 10;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  #log-strip .log-lbl { color: #2d4d2d; font-size: 10px; letter-spacing: 2px; white-space: nowrap; }
+  #log-strip .log-msg { color: #4a9a4a; font-size: 11px; white-space: nowrap; }
+  #log-strip .log-msg.new { color: var(--green); }
+
+  /* CONNECTING OVERLAY */
+  #connecting {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,8,16,.9);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--green);
+    letter-spacing: 2px;
+  }
+  #connecting .spinner {
+    width: 40px; height: 40px;
+    border: 2px solid #0a1a0a;
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #connecting.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="hud-logo">
+    <span class="title">⚙ VAULT 2026</span>
+    <span class="sub">TALLER AGENTES IA · EL SALVADOR</span>
+  </div>
+
+  <div class="hud-stat">
+    <span class="val" id="stat-agents">4</span>
+    <span class="lbl">AGENTES</span>
+  </div>
+  <div class="hud-stat">
+    <span class="val" id="stat-msgs">0</span>
+    <span class="lbl">MENSAJES</span>
+  </div>
+  <div class="hud-stat">
+    <span class="val" id="stat-uptime">00:00</span>
+    <span class="lbl">UPTIME</span>
+  </div>
+
+  <div class="hud-bar-group">
+    <div class="hud-bar-row">
+      <span class="lbl">GROQ</span>
+      <div class="hud-bar-track"><div class="hud-bar-fill" id="bar-groq" style="width:0%;background:var(--green)"></div></div>
+    </div>
+    <div class="hud-bar-row">
+      <span class="lbl">ACTIVO</span>
+      <div class="hud-bar-track"><div class="hud-bar-fill" id="bar-active" style="width:0%;background:var(--amber)"></div></div>
+    </div>
+  </div>
+
+  <div id="hud-status">
+    <div class="dot"></div>
+    <span id="status-text">ONLINE</span>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main>
+  <div class="floor">
+    <div class="floor-label">▸ PLANTA PRINCIPAL — AGENTES DE PRODUCCIÓN</div>
+    <div class="floor-rooms" id="main-floor"></div>
+  </div>
+</main>
+
+<!-- LOG STRIP -->
+<div id="log-strip">
+  <span class="log-lbl">LOG ▸</span>
+  <span class="log-msg" id="log-msg">Sistema iniciando...</span>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2 id="modal-name">—</h2>
+    <div class="modal-role" id="modal-role">—</div>
+    <div class="modal-row"><span class="modal-key">ESTADO</span><span class="modal-val" id="modal-status">—</span></div>
+    <div class="modal-row"><span class="modal-key">ACTIVIDAD</span><span class="modal-val" id="modal-activity">—</span></div>
+    <div class="modal-row"><span class="modal-key">MENSAJES</span><span class="modal-val" id="modal-msgs">—</span></div>
+    <div class="modal-row"><span class="modal-key">MODELO</span><span class="modal-val" id="modal-model">Groq / Llama 3.1 70B</span></div>
+    <div class="modal-row"><span class="modal-key">SKILL</span><span class="modal-val" id="modal-skill">—</span></div>
+    <div class="modal-close"><button onclick="closeModal()">[ CERRAR ]</button></div>
+  </div>
+</div>
+
+<!-- CONNECTING -->
+<div id="connecting">
+  <div class="spinner"></div>
+  <span>CONECTANDO AL GATEWAY...</span>
+  <span id="conn-detail" style="color:#2d4d2d;font-size:10px">ws://127.0.0.1:18789</span>
+</div>
+
+<script>
+// ── Rooms config ──────────────────────────────────────────────────────────────
+const ROOMS = [
+  {
+    id: 'finanzas',
+    name: 'FINANZAS',
+    role: 'Expense Tracker · CRC',
+    skill: 'expense-tracker',
+    accent: '#f59e0b',
+    accentGlow: 'rgba(245,158,11,.2)',
+    char: 'https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/models/manager.png',
+    bg: 'linear-gradient(135deg, #1a0f00 0%, #0a0800 100%)',
+  },
+  {
+    id: 'cerebro',
+    name: 'CEREBRO',
+    role: 'Second Brain · Obsidian',
+    skill: 'second-brain',
+    accent: '#a855f7',
+    accentGlow: 'rgba(168,85,247,.2)',
+    char: 'https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/models/research.png',
+    bg: 'linear-gradient(135deg, #0f001a 0%, #08000a 100%)',
+  },
+  {
+    id: 'documentos',
+    name: 'DOCUMENTOS',
+    role: 'PDF Extractor · CSV/Excel',
+    skill: 'pdf-extractor',
+    accent: '#22d3ee',
+    accentGlow: 'rgba(34,211,238,.2)',
+    char: 'https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/models/artist.png',
+    bg: 'linear-gradient(135deg, #001a1a 0%, #000a0a 100%)',
+  },
+  {
+    id: 'desarrollo',
+    name: 'DESARROLLO',
+    role: 'Dev Assistant · Python',
+    skill: 'dev-assistant',
+    accent: '#84cc16',
+    accentGlow: 'rgba(132,204,22,.2)',
+    char: 'https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/models/coder.png',
+    bg: 'linear-gradient(135deg, #081a00 0%, #040a00 100%)',
+  },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  connected: false,
+  totalMsgs: 0,
+  startTime: Date.now(),
+  rooms: Object.fromEntries(ROOMS.map(r => [r.id, {
+    status: 'standby',
+    activity: 0,
+    msgs: 0,
+  }])),
+};
+
+// ── Render rooms ──────────────────────────────────────────────────────────────
+function renderRooms() {
+  const floor = document.getElementById('main-floor');
+  floor.innerHTML = '';
+  ROOMS.forEach(room => {
+    const rs = state.rooms[room.id];
+    const isActive = rs.status === 'active';
+    const card = document.createElement('div');
+    card.className = 'room' + (isActive ? ' active' : '');
+    card.id = 'room-' + room.id;
+    card.style.setProperty('--accent', room.accent);
+    card.style.setProperty('--accent-glow', room.accentGlow);
+    card.onclick = () => openModal(room);
+    card.innerHTML = `
+      <div class="room-bg" style="background:${room.bg}"></div>
+      <div class="room-glow"></div>
+      <div class="room-vignette"></div>
+      <img class="room-char" src="${room.char}" onerror="this.style.display='none'" alt="${room.name}">
+      <div class="room-status ${rs.status}">
+        <div class="sdot"></div>${rs.status.toUpperCase()}
+      </div>
+      <div class="room-count">${rs.msgs > 0 ? rs.msgs + ' MSG' : ''}</div>
+      <div class="room-name">${room.name}</div>
+      <div class="room-role">${room.role}</div>
+      <div class="room-progress">
+        <div class="room-progress-fill" id="prog-${room.id}" style="width:${rs.activity}%"></div>
+      </div>
+    `;
+    floor.appendChild(card);
+  });
+}
+
+// ── Gateway connection ────────────────────────────────────────────────────────
+function getToken() {
+  const hash = window.location.hash;
+  const m = hash.match(/#token=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+async function checkGateway() {
+  try {
+    const resp = await fetch('http://127.0.0.1:18789/health', {
+      signal: AbortSignal.timeout(3000)
+    });
+    return resp.ok || resp.status === 401;
+  } catch (_) { return false; }
+}
+
+async function connect() {
+  const connDiv = document.getElementById('connecting');
+  const token = getToken();
+
+  // Check gateway reachability
+  const alive = await checkGateway();
+  if (!alive) {
+    document.getElementById('conn-detail').textContent =
+      'Gateway no responde — ejecutar: bash setup/open-dashboard.sh';
+    setOffline();
+    setTimeout(connect, 8000);
+    return;
+  }
+
+  setOnline();
+  connDiv.classList.add('hidden');
+  log('Gateway conectado · VAULT ONLINE');
+  animateStartup();
+}
+
+function setOnline() {
+  state.connected = true;
+  const s = document.getElementById('hud-status');
+  s.className = '';
+  document.getElementById('status-text').textContent = 'ONLINE';
+  document.getElementById('bar-groq').style.width = '82%';
+}
+
+function setOffline() {
+  state.connected = false;
+  const s = document.getElementById('hud-status');
+  s.className = 'offline';
+  document.getElementById('status-text').textContent = 'OFFLINE';
+  document.getElementById('bar-groq').style.width = '0%';
+}
+
+// ── Demo animations on connect ────────────────────────────────────────────────
+function animateStartup() {
+  const order = ['finanzas', 'cerebro', 'documentos', 'desarrollo'];
+  order.forEach((id, i) => {
+    setTimeout(() => {
+      simulateActive(id, 1200 + i * 200);
+    }, 400 + i * 600);
+  });
+}
+
+function simulateActive(roomId, duration = 2000) {
+  state.rooms[roomId].status = 'active';
+  state.rooms[roomId].activity = Math.floor(Math.random() * 60 + 30);
+  updateRoom(roomId);
+
+  setTimeout(() => {
+    state.rooms[roomId].status = 'standby';
+    state.rooms[roomId].activity = Math.floor(Math.random() * 20);
+    updateRoom(roomId);
+  }, duration);
+}
+
+function updateRoom(id) {
+  const room = ROOMS.find(r => r.id === id);
+  const rs = state.rooms[id];
+  const card = document.getElementById('room-' + id);
+  if (!card) return;
+
+  card.className = 'room' + (rs.status === 'active' ? ' active' : '');
+  const statusEl = card.querySelector('.room-status');
+  if (statusEl) {
+    statusEl.className = 'room-status ' + rs.status;
+    statusEl.innerHTML = `<div class="sdot"></div>${rs.status.toUpperCase()}`;
+  }
+  const progEl = document.getElementById('prog-' + id);
+  if (progEl) progEl.style.width = rs.activity + '%';
+  const countEl = card.querySelector('.room-count');
+  if (countEl) countEl.textContent = rs.msgs > 0 ? rs.msgs + ' MSG' : '';
+}
+
+// ── Simulate incoming messages (demo mode) ───────────────────────────────────
+function simulateMessage() {
+  if (!state.connected) return;
+  const ids = ROOMS.map(r => r.id);
+  const id = ids[Math.floor(Math.random() * ids.length)];
+  const room = ROOMS.find(r => r.id === id);
+
+  state.totalMsgs++;
+  state.rooms[id].msgs++;
+  state.rooms[id].status = 'active';
+  state.rooms[id].activity = Math.floor(Math.random() * 50 + 40);
+  updateRoom(id);
+  updateStats();
+
+  const msgs = [
+    `MSG RECIBIDO → ${room.name}`,
+    `PROCESANDO: ${room.skill}`,
+    `AGENTE ${room.name} ACTIVO`,
+    `GROQ LLAMA-3.1-70B: respondiendo...`,
+    `RESPUESTA ENVIADA → TELEGRAM`,
+  ];
+  log(msgs[Math.floor(Math.random() * msgs.length)]);
+  document.getElementById('bar-active').style.width =
+    Math.min(state.totalMsgs * 10, 95) + '%';
+
+  setTimeout(() => {
+    state.rooms[id].status = 'standby';
+    state.rooms[id].activity = Math.floor(Math.random() * 15 + 5);
+    updateRoom(id);
+  }, 2500);
+}
+
+// Simulate messages every 12-25 seconds in demo mode
+setInterval(() => {
+  if (state.connected) simulateMessage();
+}, 12000 + Math.random() * 13000);
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-msgs').textContent = state.totalMsgs;
+}
+
+setInterval(() => {
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  document.getElementById('stat-uptime').textContent = m + ':' + s;
+}, 1000);
+
+// ── Log strip ─────────────────────────────────────────────────────────────────
+const LOG_MSGS = [];
+function log(msg) {
+  const el = document.getElementById('log-msg');
+  el.textContent = msg;
+  el.className = 'log-msg new';
+  setTimeout(() => el.className = 'log-msg', 2000);
+}
+
+// Auto log messages
+const AUTO_LOGS = [
+  'GATEWAY: heartbeat OK',
+  'GROQ API: latencia 340ms',
+  'TELEGRAM: polling activo',
+  'MEMORY-CORE: 1 plugin cargado',
+  'AGENTES: 4/4 en standby',
+];
+let logIdx = 0;
+setInterval(() => {
+  if (state.connected) {
+    log(AUTO_LOGS[logIdx % AUTO_LOGS.length]);
+    logIdx++;
+  }
+}, 5000);
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(room) {
+  const rs = state.rooms[room.id];
+  document.getElementById('modal').style.setProperty('--modal-accent', room.accent);
+  document.getElementById('modal').style.boxShadow = `0 0 30px ${room.accentGlow}`;
+  document.getElementById('modal-name').textContent = room.name;
+  document.getElementById('modal-role').textContent = room.role;
+  document.getElementById('modal-status').textContent = rs.status.toUpperCase();
+  document.getElementById('modal-activity').textContent = rs.activity + '%';
+  document.getElementById('modal-msgs').textContent = rs.msgs;
+  document.getElementById('modal-skill').textContent = room.skill;
+  document.getElementById('modal-overlay').className = 'open';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').className = '';
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderRooms();
+connect();
+</script>
+</body>
+</html>

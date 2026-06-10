@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Principiante  
-**Modelo:** Azure GPT-4o Mini  
+**Modelo:** Groq — Llama 3.1 70B  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---

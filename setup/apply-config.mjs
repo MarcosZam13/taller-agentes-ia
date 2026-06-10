@@ -33,6 +33,7 @@ const {
   AZURE_OPENAI_ENDPOINT = "",
   AZURE_OPENAI_API_KEY = "",
   OPENROUTER_API_KEY = "",
+  OLLAMA_BASE_URL = "",
   TELEGRAM_BOT_TOKEN = "",
   TELEGRAM_ALLOWED_USER_ID = "",
 } = process.env;
@@ -40,13 +41,15 @@ const {
 const hasGroq       = !!GROQ_API_KEY;
 const hasAzure      = !!(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY);
 const hasOpenRouter = !!OPENROUTER_API_KEY;
+const hasOllama     = !!OLLAMA_BASE_URL;
 const hasTelegram   = !!(TELEGRAM_BOT_TOKEN && TELEGRAM_ALLOWED_USER_ID);
 
-if (!hasGroq && !hasAzure && !hasOpenRouter) {
+if (!hasGroq && !hasAzure && !hasOpenRouter && !hasOllama) {
   console.error("Error: configurar al menos un proveedor en .env:");
   console.error("  GROQ_API_KEY       (recomendado — groq.com, gratis)");
   console.error("  OPENROUTER_API_KEY (fallback)");
   console.error("  AZURE_OPENAI_*     (enterprise)");
+  console.error("  OLLAMA_BASE_URL    (local — Raspberry Pi sin internet)");
   process.exit(1);
 }
 
@@ -121,21 +124,37 @@ if (hasOpenRouter) {
   };
 }
 
-// Prioridad: Groq > Azure > OpenRouter
-const primaryModel = hasGroq  ? "groq/llama-3.1-70b-versatile"
-                   : hasAzure ? "azure/gpt-4o-mini"
-                               : "openrouter/openai/gpt-4o-mini";
+// Ollama — IA local en Raspberry Pi, sin internet requerido
+if (hasOllama) {
+  providers.ollama = {
+    baseUrl: OLLAMA_BASE_URL.replace(/\/$/, "") + "/v1",
+    apiKey: "ollama",
+    api: "openai-completions",
+    models: [
+      { id: "llama3.2:3b",  name: "Llama 3.2 3B (Local/Pi)", contextWindow: 8192, maxTokens: 2048 },
+      { id: "llama3.2:1b",  name: "Llama 3.2 1B Fast (Local/Pi)", contextWindow: 8192, maxTokens: 2048 },
+    ],
+  };
+}
+
+// Prioridad: Groq > Azure > OpenRouter > Ollama
+const primaryModel = hasGroq       ? "groq/llama-3.1-70b-versatile"
+                   : hasAzure      ? "azure/gpt-4o-mini"
+                   : hasOpenRouter ? "openrouter/openai/gpt-4o-mini"
+                                   : "ollama/llama3.2:3b";
 
 const fallbackModels = [
   ...(hasGroq && hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"] : []),
   ...(hasGroq && hasAzure      ? ["azure/gpt-4o-mini"]             : []),
-].filter(Boolean);
+  ...(hasOllama ? ["ollama/llama3.2:3b"]                           : []),
+].filter((m) => m !== primaryModel);
 
 const modelAllowlist = {};
 if (hasGroq)       modelAllowlist["groq/llama-3.1-70b-versatile"]  = { alias: "llama70b" };
 if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "llama8b" };
 if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
 if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"]  = { alias: "or-mini" };
+if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "ollama-local" };
 
 const additions = {
   models: { providers },
@@ -147,7 +166,7 @@ const additions = {
         ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
       },
       models: modelAllowlist,
-      skills: ["expense-tracker"],
+      skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
     },
     list: [{ id: "main", default: true }],
   },
@@ -173,8 +192,10 @@ if (hasTelegram) {
 const merged = deepMerge(existing, additions);
 writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 
+const providerName = hasGroq ? "Groq" : hasAzure ? "Azure OpenAI" : hasOpenRouter ? "OpenRouter" : "Ollama (local)";
 console.log(`✓ Config escrito en ${configPath}`);
-console.log(`  Proveedor activo: ${hasAzure ? "Azure OpenAI" : "OpenRouter"}`);
+console.log(`  Proveedor activo: ${providerName} → ${primaryModel}`);
+if (hasOllama)   console.log("  Ollama: configurado (modo local)");
 if (hasTelegram) console.log("  Telegram: configurado");
 console.log("  El gateway recargará automáticamente (hybrid mode)");
 
