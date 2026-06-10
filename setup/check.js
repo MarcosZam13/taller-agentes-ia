@@ -222,25 +222,43 @@ if (!tgToken) {
   );
 }
 
-// ─── 6. Skill expense-tracker ─────────────────────────────────────────────────
+// ─── 6. Skills ───────────────────────────────────────────────────────────────
 console.log(head("6. Skills"));
-const skillPath = resolve(ROOT, "skills/expense-tracker/SKILL.md");
-check(
-  "SKILL.md expense-tracker existe",
-  existsSync(skillPath),
-  `Archivo esperado: ${skillPath}`
-);
+const SKILLS = ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"];
+for (const skill of SKILLS) {
+  const skillPath = resolve(ROOT, "skills", skill, "SKILL.md");
+  check(
+    `SKILL.md ${skill}`,
+    existsSync(skillPath),
+    `Archivo esperado: skills/${skill}/SKILL.md`
+  );
+  const wsSkill = resolve(process.env.HOME || "/root", ".openclaw/workspace/skills", skill, "SKILL.md");
+  checkWarn(
+    existsSync(wsSkill) ? `  ${skill} instalada en workspace` : `  ${skill} no en workspace`,
+    existsSync(wsSkill),
+    `Ejecutar: bash setup/install.sh`
+  );
+}
 
-const workspaceSkill = resolve(
-  process.env.HOME || "/root",
-  ".openclaw/workspace/skills/expense-tracker/SKILL.md"
-);
+// ─── 7. Vault relay ──────────────────────────────────────────────────────────
+console.log(head("7. Vault relay"));
+const relayPath = resolve(ROOT, "demo/vault/relay.mjs");
+const wsModulePath = resolve(ROOT, "demo/vault/node_modules/ws");
+check("relay.mjs existe", existsSync(relayPath), `Archivo esperado: demo/vault/relay.mjs`);
 checkWarn(
-  existsSync(workspaceSkill)
-    ? "Skill instalada en workspace"
-    : "Skill no instalada en workspace (ejecutar install.sh primero)",
-  existsSync(workspaceSkill),
-  `Copiar: ${skillPath} → ${workspaceSkill}`
+  existsSync(wsModulePath) ? "Dependencia ws instalada" : "Dependencia ws no instalada",
+  existsSync(wsModulePath),
+  "Ejecutar: cd demo/vault && npm install"
+);
+let relayOk = false;
+try {
+  const r = await fetch("http://127.0.0.1:3001/events", { signal: AbortSignal.timeout(1500) });
+  relayOk = r.ok;
+} catch (_) {}
+checkWarn(
+  relayOk ? "Relay activo en :3001" : "Relay no activo (opcional para verificación)",
+  relayOk,
+  "Iniciar con: bash setup/open-vault.sh"
 );
 
 // ─── Resumen ──────────────────────────────────────────────────────────────────

@@ -24,7 +24,12 @@ Para términos técnicos sin traducción establecida, usar el término en inglé
 
 ## Skills disponibles
 
-- `expense-tracker` — Registro de gastos en colones (₡ CRC). Ver `/skills` para la lista completa.
+- `expense-tracker` — Registro de gastos en colones (₡ CRC)
+- `second-brain` — Gestión de notas en formato Obsidian
+- `pdf-extractor` — Extracción de datos de archivos PDF
+- `dev-assistant` — Ejecución de código Python y análisis de errores
+
+Usar `/skills` para ver la lista completa con estado.
 
 ## Restricciones
 
@@ -34,7 +39,7 @@ Para términos técnicos sin traducción establecida, usar el término en inglé
 
 ## Contexto del taller
 
-- Plataforma: CachyOS Linux (Arch-based), Raspberry Pi, Windows
-- Modelo: Azure OpenAI GPT-4o Mini
-- Casos de uso: finanzas personales, automatización, productividad, educación
+- Plataforma: CachyOS/Arch Linux, Ubuntu, Raspberry Pi, Windows (WSL2)
+- Modelo principal: Groq — Llama 3.1 70B Versatile
+- Casos de uso: finanzas personales, gestión del conocimiento, documentos, desarrollo
 - Audiencia: desarrolladores con experiencia básica-intermedia

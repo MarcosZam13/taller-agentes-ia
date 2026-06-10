@@ -113,18 +113,33 @@ info "Aplicando configuración de modelos y skills..."
 node "$REPO_DIR/setup/apply-config.mjs" && info "Configuración aplicada" || \
   warn "apply-config.mjs falló — ejecutar manualmente: node setup/apply-config.mjs"
 
-# 7. Instalar la skill expense-tracker en el workspace
-SKILL_DEST="$HOME/.openclaw/workspace/skills/expense-tracker"
-mkdir -p "$SKILL_DEST"
-cp "$REPO_DIR/skills/expense-tracker/SKILL.md" "$SKILL_DEST/"
-info "Skill expense-tracker instalada en workspace"
+# 7. Instalar las 4 skills en el workspace
+for SKILL in expense-tracker second-brain pdf-extractor dev-assistant; do
+  SKILL_DEST="$HOME/.openclaw/workspace/skills/$SKILL"
+  mkdir -p "$SKILL_DEST"
+  if [[ -f "$REPO_DIR/skills/$SKILL/SKILL.md" ]]; then
+    cp "$REPO_DIR/skills/$SKILL/SKILL.md" "$SKILL_DEST/"
+    info "Skill $SKILL instalada en workspace"
+  else
+    warn "Skill $SKILL no encontrada en skills/$SKILL/SKILL.md — omitida"
+  fi
+done
 
 # Copiar AGENTS.md al workspace
 cp "$REPO_DIR/AGENTS.md" "$HOME/.openclaw/workspace/" 2>/dev/null && \
   info "AGENTS.md copiado al workspace" || true
 
+# 8. Instalar dependencias del vault relay
+if command -v npm &>/dev/null && [[ -f "$REPO_DIR/demo/vault/package.json" ]]; then
+  info "Instalando dependencias del vault relay..."
+  (cd "$REPO_DIR/demo/vault" && npm install --silent 2>/dev/null) && \
+    info "Dependencias del vault instaladas" || \
+    warn "npm install en demo/vault falló — ejecutar manualmente: cd demo/vault && npm install"
+fi
+
 echo ""
 info "=== Instalación completa ==="
-echo "  Dashboard: http://127.0.0.1:18789"
-echo "  Verificar: node setup/check.js"
-echo "  Logs:      journalctl --user -u openclaw-gateway.service -f"
+echo "  Vault dashboard: bash setup/open-vault.sh"
+echo "  Dashboard:       bash setup/open-dashboard.sh"
+echo "  Verificar:       node setup/check.js"
+echo "  Logs:            journalctl --user -u openclaw-gateway.service -f"
