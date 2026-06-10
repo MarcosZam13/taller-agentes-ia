@@ -34,18 +34,42 @@ if [[ -z "$TOKEN" ]]; then
   exit 1
 fi
 
-URL="http://127.0.0.1:18789/#token=$TOKEN"
-echo "[+] Dashboard: $URL"
-echo "[+] Abriendo navegador..."
+DASHBOARD_URL="http://127.0.0.1:18789/#token=$TOKEN"
 
-# Abrir en el navegador disponible
+# Escribir un HTML temporal con meta-refresh — el token no queda en argv del navegador
+TMPFILE=$(mktemp /tmp/openclaw-XXXXXX.html)
+cat > "$TMPFILE" <<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=$DASHBOARD_URL">
+  <title>OpenClaw Dashboard</title>
+</head>
+<body>Redirigiendo al dashboard de OpenClaw...</body>
+</html>
+HTML
+# Limpiar el archivo después de que el navegador lo cargue
+(sleep 10 && rm -f "$TMPFILE") &
+
+echo "[+] Dashboard: http://127.0.0.1:18789 (abriendo con auth...)"
+
+# Abrir el archivo HTML local — el token no aparece en los args del proceso
 if command -v xdg-open &>/dev/null; then
-  xdg-open "$URL"
+  xdg-open "file://$TMPFILE"
 elif command -v firefox &>/dev/null; then
-  firefox "$URL" &
+  firefox "file://$TMPFILE" &
 elif command -v chromium &>/dev/null; then
-  chromium "$URL" &
+  chromium "file://$TMPFILE" &
 else
-  echo "[!] Copiar esta URL manualmente al navegador:"
-  echo "    $URL"
+  # Fallback: copiar al clipboard sin imprimir en stdout
+  if command -v wl-copy &>/dev/null; then
+    printf '%s' "$DASHBOARD_URL" | wl-copy
+    echo "[+] URL copiada al clipboard — pegar en el navegador"
+  elif command -v xclip &>/dev/null; then
+    printf '%s' "$DASHBOARD_URL" | xclip -selection clipboard
+    echo "[+] URL copiada al clipboard — pegar en el navegador"
+  else
+    echo "[!] Abrir manualmente: http://127.0.0.1:18789 y usar 'openclaw dashboard --no-open' para el token"
+  fi
 fi
