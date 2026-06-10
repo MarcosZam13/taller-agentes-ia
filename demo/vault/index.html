@@ -105,121 +105,51 @@ body::after {
   pointer-events: none;
 }
 
-/* ── Room backgrounds ────────────────────────────── */
-/* FINANZAS — bóveda / banco */
+/* ── Room backgrounds — pixel art real images ────── */
+/* Capas: tint de color → oscurecido para legibilidad → imagen */
+.room-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* FINANZAS — cuarto de control / bóveda */
 .room[data-id="finanzas"] .room-bg {
   background:
-    radial-gradient(circle at 22% 38%, rgba(245,158,11,.13) 0%, transparent 42%),
-    repeating-linear-gradient(60deg,  rgba(245,158,11,.025) 0px, transparent 1px, transparent 28px),
-    repeating-linear-gradient(-60deg, rgba(245,158,11,.025) 0px, transparent 1px, transparent 28px),
-    repeating-linear-gradient(0deg,   rgba(0,0,0,.15) 0px, rgba(0,0,0,.15) 1px, transparent 1px, transparent 32px),
-    linear-gradient(180deg, #1c0e00 0%, #0d0700 100%);
-}
-/* puerta de bóveda */
-.room[data-id="finanzas"] .room-furn::before {
-  content:''; position:absolute;
-  left:7%; top:14%; width:26%; aspect-ratio:1;
-  border:2px solid rgba(245,158,11,.25);
-  border-radius:50%;
-  box-shadow:0 0 14px rgba(245,158,11,.08), inset 0 0 8px rgba(245,158,11,.05);
-}
-/* anillo interior */
-.room[data-id="finanzas"] .room-furn::after {
-  content:''; position:absolute;
-  left:calc(7% + 7%); top:calc(14% + 7%); width:12%; aspect-ratio:1;
-  border:1px solid rgba(245,158,11,.14);
-  border-radius:50%;
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(245,158,11,.45) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.05) 40%, rgba(0,0,0,.6) 100%),
+    url('https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/Images/Room-Design1.png') center/cover no-repeat;
 }
 
-/* CEREBRO — laboratorio / biblioteca */
+/* CEREBRO — biblioteca / laboratorio de conocimiento */
 .room[data-id="cerebro"] .room-bg {
   background:
-    radial-gradient(ellipse 55% 65% at 28% 32%, rgba(168,85,247,.15) 0%, transparent 58%),
-    radial-gradient(circle at 76% 68%, rgba(168,85,247,.06) 0%, transparent 35%),
-    repeating-linear-gradient(45deg,  rgba(168,85,247,.02) 0px, transparent 1px, transparent 18px),
-    repeating-linear-gradient(-45deg, rgba(168,85,247,.02) 0px, transparent 1px, transparent 18px),
-    linear-gradient(160deg, #10001e 0%, #08000e 100%);
-}
-/* estante */
-.room[data-id="cerebro"] .room-furn::before {
-  content:''; position:absolute;
-  right:7%; top:12%; width:15%; bottom:28%;
-  background:repeating-linear-gradient(0deg,
-    rgba(168,85,247,.18) 0px, rgba(168,85,247,.18) 7px,
-    rgba(168,85,247,.04) 7px, rgba(168,85,247,.04) 9px);
-  border-left:1px solid rgba(168,85,247,.2);
-}
-/* orbe neural */
-.room[data-id="cerebro"] .room-furn::after {
-  content:''; position:absolute;
-  left:12%; top:16%; width:22%; aspect-ratio:1;
-  border-radius:50%;
-  background:radial-gradient(circle, rgba(168,85,247,.16) 0%, rgba(168,85,247,.03) 60%, transparent 70%);
-  box-shadow:0 0 16px rgba(168,85,247,.15);
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(168,85,247,.45) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,.05) 40%, rgba(0,0,0,.6) 100%),
+    url('https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/Images/Room-Design5.png') center/cover no-repeat;
 }
 
-/* DOCUMENTOS — sala de archivo */
+/* DOCUMENTOS — sala de archivos */
 .room[data-id="documentos"] .room-bg {
   background:
-    radial-gradient(ellipse 70% 40% at 50% 18%, rgba(34,211,238,.09) 0%, transparent 55%),
-    repeating-linear-gradient(0deg,  rgba(34,211,238,.03) 0px, rgba(34,211,238,.03) 1px, transparent 1px, transparent 12px),
-    repeating-linear-gradient(90deg, rgba(34,211,238,.02) 0px, transparent 1px, transparent 20px),
-    linear-gradient(180deg, #001818 0%, #000b0b 100%);
-}
-/* archivero */
-.room[data-id="documentos"] .room-furn::before {
-  content:''; position:absolute;
-  left:7%; top:12%; width:18%; bottom:28%;
-  background:repeating-linear-gradient(180deg,
-    rgba(34,211,238,.12) 0px, rgba(34,211,238,.12) 17px,
-    rgba(34,211,238,.03) 17px, rgba(34,211,238,.03) 19px);
-  border:1px solid rgba(34,211,238,.12);
-  border-radius:2px;
-}
-/* pila de documentos */
-.room[data-id="documentos"] .room-furn::after {
-  content:''; position:absolute;
-  right:10%; top:20%; width:22%; height:3px;
-  background:rgba(34,211,238,.14);
-  box-shadow: 0 -6px 0 rgba(34,211,238,.1), 0 -12px 0 rgba(34,211,238,.07), 0 -18px 0 rgba(34,211,238,.04);
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(34,211,238,.4) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,.05) 40%, rgba(0,0,0,.6) 100%),
+    url('https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/Images/archive.png') center/cover no-repeat;
 }
 
 /* DESARROLLO — laboratorio de computadoras */
 .room[data-id="desarrollo"] .room-bg {
   background:
-    radial-gradient(ellipse 65% 55% at 62% 28%, rgba(132,204,22,.12) 0%, transparent 55%),
-    repeating-linear-gradient(0deg, rgba(132,204,22,.025) 0px, rgba(132,204,22,.025) 1px, transparent 1px, transparent 8px),
-    repeating-linear-gradient(90deg, rgba(132,204,22,.015) 0px, transparent 1px, transparent 14px),
-    linear-gradient(160deg, #061200 0%, #020900 100%);
-}
-/* monitor */
-.room[data-id="desarrollo"] .room-furn::before {
-  content:''; position:absolute;
-  left:8%; top:14%; width:32%; height:34%;
-  border:1.5px solid rgba(132,204,22,.22);
-  background:rgba(132,204,22,.04);
-  box-shadow:0 0 12px rgba(132,204,22,.1), inset 0 0 8px rgba(132,204,22,.05);
-  border-radius:2px;
-}
-/* rack de servidores */
-.room[data-id="desarrollo"] .room-furn::after {
-  content:''; position:absolute;
-  right:8%; top:10%; width:14%; bottom:26%;
-  background:repeating-linear-gradient(180deg,
-    rgba(132,204,22,.1) 0px, rgba(132,204,22,.1) 4px,
-    rgba(0,0,0,.25) 4px, rgba(0,0,0,.25) 6px);
-  border:1px solid rgba(132,204,22,.12);
-  border-radius:2px;
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(132,204,22,.4) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.5) 0%, rgba(0,0,0,.05) 40%, rgba(0,0,0,.6) 100%),
+    url('https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/Images/Room-Design3.png') center/cover no-repeat;
 }
 
-/* piso de losetas */
+/* piso: gradiente oscuro en la parte baja para que el personaje y texto sean legibles */
 .room-floor {
   top: auto;
-  height: 28%;
-  background:
-    repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0px, rgba(255,255,255,.02) 1px, transparent 1px, transparent 24px),
-    linear-gradient(0deg, rgba(0,0,0,.4) 0%, transparent 100%);
-  border-top:1px solid rgba(255,255,255,.04);
+  height: 35%;
+  background: linear-gradient(0deg, rgba(0,0,0,.75) 0%, rgba(0,0,0,.3) 55%, transparent 100%);
 }
 
 /* ambient glow */
@@ -455,7 +385,6 @@ function renderGrid() {
     el.onclick = () => openMod(r);
     el.innerHTML = `
       <div class="room-bg"></div>
-      <div class="room-furn"></div>
       <div class="room-floor"></div>
       <div class="room-glow"></div>
       <div class="room-vignette"></div>
