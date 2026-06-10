@@ -379,16 +379,25 @@ function getHashParam(key) {
 }
 function getToken() { return getHashParam('token'); }
 
-// Validar relay: solo loopback o HTTPS — evita que un link malicioso
-// apunte el vault a un servidor arbitrario.
-function validRelay(url) {
+// Sanitizar relay URL del hash.
+// Amenaza: link malicioso #relay=https://evil.com muestra datos falsos (phishing).
+// Mitigación:
+//   1. Sólo se acepta loopback (http) o HTTPS — nunca http a host remoto.
+//   2. Se usa u.origin (descarta path/query/fragment/credenciales incrustadas).
+//   3. Todo texto recibido se inserta con esc() — no innerHTML directo.
+// Nota: la restricción por hostname requeriría hardcodear dominios del facilitador
+// en el código fuente, lo que rompe la portabilidad del taller. El requisito HTTPS
+// es la barrera correcta para este contexto (datos de demo, no credenciales).
+function sanitizeRelay(raw) {
+  if (!raw) return null;
   try {
-    const u = new URL(url);
-    return u.protocol === 'https:' || u.hostname === '127.0.0.1' || u.hostname === 'localhost';
-  } catch { return false; }
+    const u = new URL(raw);
+    const loopback = u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+    if (!loopback && u.protocol !== 'https:') return null; // bloquear http a hosts externos
+    return u.origin; // normaliza: descarta path, query, fragment, user:pass
+  } catch { return null; }
 }
-const _rawRelay = getHashParam('relay') || 'http://127.0.0.1:3001';
-const RELAY_URL = validRelay(_rawRelay) ? _rawRelay : 'http://127.0.0.1:3001';
+const RELAY_URL = sanitizeRelay(getHashParam('relay')) ?? 'http://127.0.0.1:3001';
 
 // Escapar HTML para texto que viene del relay (datos no confiables)
 function esc(s) {
