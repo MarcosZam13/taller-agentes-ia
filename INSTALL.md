@@ -1,12 +1,12 @@
-# Guía de instalación — 3 plataformas
+# Guía de instalación — 4 plataformas
 
 ## Prerequisitos comunes (todos los sistemas)
 
 Antes de empezar necesitás tener:
 
-- [ ] **API key de Groq** — gratis en [groq.com](https://groq.com) → API Keys (2 min)
-- [ ] **Bot de Telegram** — crear con [@BotFather](https://t.me/BotFather) → `/newbot`
-- [ ] **Tu ID de Telegram** — mandar cualquier mensaje a [@userinfobot](https://t.me/userinfobot)
+- [ ] **API key de Groq** — gratis en [console.groq.com](https://console.groq.com) → API Keys (2 min)
+- [ ] **Bot de Telegram** — crear con [@BotFather](https://t.me/BotFather) → `/newbot` (opcional)
+- [ ] **Tu ID de Telegram** — mandar cualquier mensaje a [@userinfobot](https://t.me/userinfobot) (opcional)
 - [ ] **OpenRouter key** (opcional, fallback) — [openrouter.ai](https://openrouter.ai)
 
 ---
@@ -315,6 +315,110 @@ cloudflared tunnel --url http://localhost:18789
 
 ---
 
+---
+
+## Raspberry Pi como servidor permanente del taller
+
+La Pi puede correr el gateway, el relay y Cloudflare Tunnel las 24 horas, eliminando la necesidad de preparar una laptop antes de cada sesión. El vault se sirve desde Vercel y se conecta al relay de la Pi vía Cloudflare.
+
+### Arquitectura
+
+```
+Pi (siempre encendida)
+  openclaw-gateway  :18789  (systemd)
+  vault-relay       :3001   (systemd)
+  cloudflared               (systemd)
+        ↓
+  https://vault.TU_DOMINIO.com  (Cloudflare Tunnel)
+        ↓
+  https://taller-vault.vercel.app/#relay=https://vault.TU_DOMINIO.com
+        ↓  (QR en el taller)
+  📱 Todos los participantes ven el vault en su celular
+```
+
+### Setup inicial en la Pi (una sola vez)
+
+```bash
+# 1. Seguir los pasos de Linux de arriba hasta que check.js esté verde
+
+# 2. Instalar cloudflared
+wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb
+sudo dpkg -i cloudflared-linux-arm64.deb
+
+# 3. Crear tunnel permanente (requiere cuenta en cloudflare.com, gratis)
+cloudflared tunnel login
+cloudflared tunnel create taller-vault
+cloudflared tunnel route dns taller-vault vault.TU_DOMINIO.com
+# Crear el config del tunnel:
+mkdir -p ~/.cloudflared
+cat > ~/.cloudflared/config.yml << 'EOF'
+tunnel: <ID_DEL_TUNNEL>
+credentials-file: /home/pi/.cloudflared/<ID_DEL_TUNNEL>.json
+ingress:
+  - hostname: vault.TU_DOMINIO.com
+    service: http://localhost:3001
+  - service: http_status:404
+EOF
+
+# 4. Instalar el relay como servicio systemd
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/vault-relay.service << 'EOF'
+[Unit]
+Description=Vault Relay (OpenClaw → HTTP)
+After=openclaw-gateway.service
+Requires=openclaw-gateway.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/taller-agentes-ia/demo/vault
+ExecStart=/usr/bin/node relay.mjs
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user daemon-reload
+systemctl --user enable --now vault-relay.service
+
+# 5. Instalar cloudflared como servicio (como root, para que arranque sin login)
+sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+
+# 6. Que los servicios de usuario arranquen sin que alguien inicie sesión
+sudo loginctl enable-linger $USER
+```
+
+### URL del vault para el taller
+
+```
+https://taller-vault.vercel.app/#relay=https://vault.TU_DOMINIO.com
+```
+
+Generar un QR con esta URL y proyectarlo. Todos pueden abrir el vault en su celular.
+
+### Actualizar el código en la Pi
+
+```bash
+cd ~/taller-agentes-ia
+git pull
+node setup/apply-config.mjs
+systemctl --user restart vault-relay.service
+systemctl --user restart openclaw-gateway.service
+```
+
+### Verificar que todo esté activo antes del taller
+
+```bash
+systemctl --user status openclaw-gateway.service
+systemctl --user status vault-relay.service
+sudo systemctl status cloudflared
+curl https://vault.TU_DOMINIO.com/events   # debe devolver JSON con connected:true
+```
+
+---
+
 ## Troubleshooting rápido
 
 | Problema | Causa probable | Solución |
@@ -325,3 +429,4 @@ cloudflared tunnel --url http://localhost:18789
 | Bot no responde en Telegram | Gateway caído o token inválido | `node setup/check.js` |
 | `openclaw: command not found` | PATH no actualizado | `source ~/.bashrc` o reiniciar terminal |
 | Groq da 429 (rate limit) | Demasiadas requests seguidas | Esperar 60s o cambiar a OpenRouter |
+| Vault en Vercel muestra OFFLINE | Relay de Pi no accesible | Verificar `systemctl --user status vault-relay.service` y el tunnel |

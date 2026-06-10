@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "taller-vault",
+  "buildCommand": null,
+  "outputDirectory": "demo/vault",
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}

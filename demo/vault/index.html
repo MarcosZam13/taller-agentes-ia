@@ -367,10 +367,18 @@ const S = {
   rooms: Object.fromEntries(ROOMS.map(r => [r.id, { status:'standby', activity:0, msgs:0 }])),
 };
 
-function getToken() {
-  const m = window.location.hash.match(/#?token=([^&]+)/);
-  return m ? m[1] : null;
+// Parámetros del hash: #relay=URL&token=TOKEN
+// Ejemplos:
+//   local:   (sin parámetros, usa localhost:3001)
+//   remoto:  #relay=https://vault.tu-dominio.com
+//   con WS:  #token=XXX (para conexión directa al gateway)
+function getHashParam(key) {
+  const h = window.location.hash.replace(/^#/, '');
+  const p = new URLSearchParams(h);
+  return p.get(key) || null;
 }
+function getToken() { return getHashParam('token'); }
+const RELAY_URL = getHashParam('relay') || 'http://127.0.0.1:3001';
 
 // ── Render ────────────────────────────────────────
 function renderGrid() {
@@ -463,7 +471,7 @@ async function checkGW() {
 async function init() {
   // Intentar relay primero (resuelve CORS desde file://)
   try {
-    const r = await fetch('http://127.0.0.1:3001/events', { signal: AbortSignal.timeout(2500) });
+    const r = await fetch(`${RELAY_URL}/events`, { signal: AbortSignal.timeout(2500) });
     if (r.ok) {
       const d = await r.json();
       if (d.connected) {
@@ -523,7 +531,7 @@ function mapAgentRoom(agentId) {
 
 async function pollRelay() {
   try {
-    const res = await fetch('http://127.0.0.1:3001/events', { signal: AbortSignal.timeout(2500) });
+    const res = await fetch(`${RELAY_URL}/events`, { signal: AbortSignal.timeout(2500) });
     if (!res.ok) return;
     const data = await res.json();
 
