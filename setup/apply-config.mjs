@@ -159,9 +159,11 @@ if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "
 const additions = {
   models: { providers },
   gateway: {
-    // Permite que el vault dashboard (file:// y localhost) conecte al WS
+    // El relay conecta desde http://127.0.0.1:18789 (mismo origen que el gateway).
+    // No se necesita "null" — el vault dashboard NO conecta directamente al WS,
+    // siempre pasa por el relay (demo/vault/relay.mjs).
     controlUi: {
-      allowedOrigins: ["null", "http://localhost:3000", "http://127.0.0.1:3000"],
+      allowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
     },
   },
   agents: {

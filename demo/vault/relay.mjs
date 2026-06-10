@@ -146,9 +146,24 @@ function connect(token) {
   });
 }
 
-// ── HTTP server (CORS habilitado) ─────────────────────────────────────────────
+// ── HTTP server ───────────────────────────────────────────────────────────────
+// CORS restringido: solo file:// (origin: null) y localhost conocidos.
+// El relay escucha solo en 127.0.0.1, pero evitamos exponer datos de agentes
+// a cualquier página abierta en el navegador del mismo equipo.
+const ALLOWED_ORIGINS = new Set([
+  "null",                      // dashboard abierto desde file://
+  "http://127.0.0.1:3001",     // servido por el propio relay
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+]);
+
 const server = createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers["origin"] || "";
+  if (ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Content-Type", "application/json");
 
