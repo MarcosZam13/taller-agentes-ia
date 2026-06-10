@@ -378,7 +378,24 @@ function getHashParam(key) {
   return p.get(key) || null;
 }
 function getToken() { return getHashParam('token'); }
-const RELAY_URL = getHashParam('relay') || 'http://127.0.0.1:3001';
+
+// Validar relay: solo loopback o HTTPS — evita que un link malicioso
+// apunte el vault a un servidor arbitrario.
+function validRelay(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+  } catch { return false; }
+}
+const _rawRelay = getHashParam('relay') || 'http://127.0.0.1:3001';
+const RELAY_URL = validRelay(_rawRelay) ? _rawRelay : 'http://127.0.0.1:3001';
+
+// Escapar HTML para texto que viene del relay (datos no confiables)
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // ── Render ────────────────────────────────────────
 function renderGrid() {
@@ -444,7 +461,7 @@ function addFeed(roomId, text, dir = 'user') {
       <span>${r.name}</span>
       <span style="margin-left:auto;opacity:.7">${ts}</span>
     </div>
-    <div class="fi-txt ${dir === 'user' ? 'u' : ''}">${text.slice(0,58)}${text.length>58?'…':''}</div>
+    <div class="fi-txt ${dir === 'user' ? 'u' : ''}">${esc(text.slice(0,58))}${text.length>58?'…':''}</div>
   `;
   feed.insertBefore(item, feed.firstChild);
   setTimeout(() => item.classList.remove('new'), 600);
