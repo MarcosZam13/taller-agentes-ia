@@ -29,6 +29,7 @@ if (existsSync(envPath)) {
 }
 
 const {
+  GROQ_API_KEY = "",
   AZURE_OPENAI_ENDPOINT = "",
   AZURE_OPENAI_API_KEY = "",
   OPENROUTER_API_KEY = "",
@@ -36,12 +37,16 @@ const {
   TELEGRAM_ALLOWED_USER_ID = "",
 } = process.env;
 
+const hasGroq       = !!GROQ_API_KEY;
 const hasAzure      = !!(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY);
 const hasOpenRouter = !!OPENROUTER_API_KEY;
 const hasTelegram   = !!(TELEGRAM_BOT_TOKEN && TELEGRAM_ALLOWED_USER_ID);
 
-if (!hasAzure && !hasOpenRouter) {
-  console.error("Error: configurar AZURE_OPENAI_API_KEY o OPENROUTER_API_KEY en .env");
+if (!hasGroq && !hasAzure && !hasOpenRouter) {
+  console.error("Error: configurar al menos un proveedor en .env:");
+  console.error("  GROQ_API_KEY       (recomendado — groq.com, gratis)");
+  console.error("  OPENROUTER_API_KEY (fallback)");
+  console.error("  AZURE_OPENAI_*     (enterprise)");
   process.exit(1);
 }
 
@@ -80,18 +85,27 @@ function deepMerge(target, source) {
 // ── Construir las adiciones según proveedores disponibles ─────────────────────
 const providers = {};
 
+// Groq — primario para el taller (gratis, ~500 tok/s, OpenAI-compatible)
+if (hasGroq) {
+  providers.groq = {
+    baseUrl: "https://api.groq.com/openai/v1",
+    apiKey: GROQ_API_KEY,
+    api: "openai-completions",
+    models: [
+      { id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B (Groq)", contextWindow: 131072, maxTokens: 8000 },
+      { id: "llama-3.1-8b-instant",    name: "Llama 3.1 8B Fast (Groq)", contextWindow: 131072, maxTokens: 8000 },
+      { id: "mixtral-8x7b-32768",      name: "Mixtral 8x7B (Groq)", contextWindow: 32768,  maxTokens: 8000 },
+    ],
+  };
+}
+
 if (hasAzure) {
   providers.azure = {
     baseUrl: `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, "")}/openai/deployments`,
     apiKey: AZURE_OPENAI_API_KEY,
     api: "openai-completions",
     models: [
-      {
-        id: "gpt-4o-mini",
-        name: "GPT-4o Mini (Azure)",
-        contextWindow: 128000,
-        maxTokens: 16000,
-      },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini (Azure)", contextWindow: 128000, maxTokens: 16000 },
     ],
   };
 }
@@ -102,22 +116,26 @@ if (hasOpenRouter) {
     apiKey: OPENROUTER_API_KEY,
     api: "openai-completions",
     models: [
-      {
-        id: "openai/gpt-4o-mini",
-        name: "GPT-4o Mini (OpenRouter)",
-        contextWindow: 128000,
-        maxTokens: 16000,
-      },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini (OpenRouter)", contextWindow: 128000, maxTokens: 16000 },
     ],
   };
 }
 
-const primaryModel = hasAzure ? "azure/gpt-4o-mini" : "openrouter/openai/gpt-4o-mini";
-const fallbackModels = hasAzure && hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"] : [];
+// Prioridad: Groq > Azure > OpenRouter
+const primaryModel = hasGroq  ? "groq/llama-3.1-70b-versatile"
+                   : hasAzure ? "azure/gpt-4o-mini"
+                               : "openrouter/openai/gpt-4o-mini";
+
+const fallbackModels = [
+  ...(hasGroq && hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"] : []),
+  ...(hasGroq && hasAzure      ? ["azure/gpt-4o-mini"]             : []),
+].filter(Boolean);
 
 const modelAllowlist = {};
-if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]            = { alias: "azure-mini" };
-if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"] = { alias: "or-mini" };
+if (hasGroq)       modelAllowlist["groq/llama-3.1-70b-versatile"]  = { alias: "llama70b" };
+if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "llama8b" };
+if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
+if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"]  = { alias: "or-mini" };
 
 const additions = {
   models: { providers },

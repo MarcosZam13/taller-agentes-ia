@@ -96,43 +96,36 @@ if (openclawOk) {
 // ─── 3. Variables de entorno ──────────────────────────────────────────────────
 console.log(head("3. Variables de entorno"));
 
-const azureEndpoint  = process.env.AZURE_OPENAI_ENDPOINT || "";
-const azureKey       = process.env.AZURE_OPENAI_API_KEY  || "";
-const openrouterKey  = process.env.OPENROUTER_API_KEY    || "";
-const tgToken        = process.env.TELEGRAM_BOT_TOKEN    || "";
+const groqKey        = process.env.GROQ_API_KEY           || "";
+const azureEndpoint  = process.env.AZURE_OPENAI_ENDPOINT  || "";
+const azureKey       = process.env.AZURE_OPENAI_API_KEY   || "";
+const openrouterKey  = process.env.OPENROUTER_API_KEY     || "";
+const tgToken        = process.env.TELEGRAM_BOT_TOKEN     || "";
 const tgUser         = process.env.TELEGRAM_ALLOWED_USER_ID || "";
 
+const hasGroq        = !!groqKey;
 const hasAzure       = !!(azureEndpoint && azureKey);
 const hasOpenRouter  = !!openrouterKey;
 
 // Al menos un proveedor requerido
 check(
-  hasAzure || hasOpenRouter
-    ? `Proveedor activo: ${hasAzure ? "Azure OpenAI" : "OpenRouter"}`
+  hasGroq || hasAzure || hasOpenRouter
+    ? `Proveedor activo: ${hasGroq ? "Groq (primario)" : hasAzure ? "Azure OpenAI" : "OpenRouter"}`
     : "Ningún proveedor configurado",
-  hasAzure || hasOpenRouter,
-  "Configurar AZURE_OPENAI_API_KEY+ENDPOINT (Opción A) u OPENROUTER_API_KEY (Opción B)"
+  hasGroq || hasAzure || hasOpenRouter,
+  "Configurar GROQ_API_KEY (recomendado) u OPENROUTER_API_KEY en .env"
 );
 
-if (hasAzure) {
-  console.log(ok(`  Azure endpoint: ${azureEndpoint.substring(0, 45)}...`));
-  console.log(ok(`  Azure key: ${"*".repeat(8)}${azureKey.slice(-4)}`));
+if (hasGroq) {
+  console.log(ok(`  Groq key: ${"*".repeat(8)}${groqKey.slice(-4)}`));
 } else {
-  checkWarn(
-    "Azure OpenAI: no configurado",
-    false,
-    "Opcional — ver README.md sección Azure"
-  );
+  checkWarn("Groq: no configurado (recomendado para el taller)", false, "https://groq.com → API Keys");
 }
-
 if (hasOpenRouter) {
   console.log(ok(`  OpenRouter key: ${"*".repeat(8)}${openrouterKey.slice(-4)}`));
-} else {
-  checkWarn(
-    "OpenRouter: no configurado (fallback)",
-    false,
-    "https://openrouter.ai → API Keys"
-  );
+}
+if (hasAzure) {
+  console.log(ok(`  Azure endpoint: ${azureEndpoint.substring(0, 40)}...`));
 }
 
 checkWarn(
@@ -179,7 +172,14 @@ async function testEndpoint(url, headers, body, label) {
   );
 }
 
-if (hasAzure) {
+if (hasGroq) {
+  await testEndpoint(
+    "https://api.groq.com/openai/v1/chat/completions",
+    { Authorization: `Bearer ${groqKey}` },
+    { model: "llama-3.1-8b-instant", messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
+    "Groq"
+  );
+} else if (hasAzure) {
   const base = azureEndpoint.replace(/\/$/, "");
   await testEndpoint(
     `${base}/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview`,
