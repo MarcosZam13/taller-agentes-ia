@@ -111,6 +111,35 @@ Evita el error `EACCES: permission denied` al instalar paquetes globales en Linu
 
 ---
 
+## Acceder al Dashboard (problema conocido)
+
+**Síntoma:** Al abrir `http://127.0.0.1:18789` aparece "La autenticación no coincide" en rojo.
+
+**Causa:** El dashboard necesita el token embedido en la URL como fragmento `#token=XXX`. Sin él siempre falla, sin importar qué pongas en el campo "Token de la puerta de enlace".
+
+**Solución — una de estas tres:**
+
+```bash
+# Opción 1 (recomendada): script del taller
+bash setup/open-dashboard.sh
+
+# Opción 2: comando openclaw (copia URL al clipboard, luego pegar en navegador)
+openclaw dashboard --no-open
+# → la URL del clipboard tiene formato: http://127.0.0.1:18789/#token=XXX
+
+# Opción 3: construir la URL manualmente
+python3 -c "
+import json
+d = json.load(open('/home/$(whoami)/.openclaw/openclaw.json'))
+t = d['gateway']['auth']['token']
+print(f'http://127.0.0.1:18789/#token={t}')
+"
+```
+
+**NUNCA** abrir `http://127.0.0.1:18789` sin el `#token=` al final — siempre va a fallar.
+
+---
+
 ## Troubleshooting general
 
 ```bash
