@@ -1,0 +1,132 @@
+// openclaw.json — Configuración mínima funcional para taller
+// Formato: JSON5 (admite comentarios y comas finales)
+//
+// IMPORTANTE: Este archivo usa referencias ${VAR} que se sustituyen
+// durante install.sh. NO copiar directamente a ~/.openclaw/openclaw.json
+// sin antes ejecutar setup/install.sh.
+//
+// Sobre models.providers:
+//   Azure y OpenRouter son proveedores PERSONALIZADOS (no están en el
+//   catálogo integrado de OpenClaw). Por eso SÍ se definen aquí.
+//   La regla "no agregar models.providers manualmente" aplica a proveedores
+//   ya integrados como openai, anthropic, google — no a endpoints custom.
+//
+// Proveedor activo: determinado por install.sh según variables disponibles.
+// Si AZURE_OPENAI_API_KEY está definida → usa azure
+// Si OPENROUTER_API_KEY está definida → usa openrouter como fallback
+{
+  // ── Modelos ────────────────────────────────────────────────────────────────
+  models: {
+    providers: {
+      // Opción A: Azure OpenAI (endpoint propio)
+      // install.sh omite este bloque si AZURE_OPENAI_API_KEY está vacío
+      azure: {
+        baseUrl: "${AZURE_OPENAI_ENDPOINT}/openai/deployments",
+        apiKey: "${AZURE_OPENAI_API_KEY}",
+        api: "openai-completions",
+        models: [
+          {
+            id: "gpt-4o-mini",
+            name: "GPT-4o Mini (Azure)",
+            contextWindow: 128000,
+            maxTokens: 16000,
+          },
+        ],
+      },
+
+      // Opción B: OpenRouter (fallback inmediato, funciona sin aprobación)
+      openrouter: {
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: "${OPENROUTER_API_KEY}",
+        api: "openai-completions",
+        models: [
+          {
+            id: "openai/gpt-4o-mini",
+            name: "GPT-4o Mini (OpenRouter)",
+            contextWindow: 128000,
+            maxTokens: 16000,
+          },
+        ],
+      },
+    },
+  },
+
+  // ── Agentes ────────────────────────────────────────────────────────────────
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+
+      // Modelo principal: Azure si está disponible, OpenRouter como fallback
+      model: {
+        primary: "azure/gpt-4o-mini",
+        fallbacks: ["openrouter/openai/gpt-4o-mini"],
+      },
+
+      // Allowlist de modelos (no merges con el catálogo global)
+      models: {
+        "azure/gpt-4o-mini": {
+          alias: "azure-mini",
+        },
+        "openrouter/openai/gpt-4o-mini": {
+          alias: "or-mini",
+        },
+      },
+
+      // Skills habilitadas por defecto
+      skills: ["expense-tracker"],
+
+      // Reset de contexto cada 2 horas de inactividad
+      session: {
+        reset: {
+          mode: "idle",
+          idleMinutes: 120,
+        },
+      },
+    },
+
+    list: [
+      {
+        id: "main",
+        default: true,
+      },
+    ],
+  },
+
+  // ── Canales ────────────────────────────────────────────────────────────────
+  channels: {
+    telegram: {
+      enabled: "${TELEGRAM_BOT_TOKEN}" !== "DISABLED",
+      botToken: "${TELEGRAM_BOT_TOKEN}",
+      // dmPolicy allowlist: solo tu usuario puede iniciar conversación
+      dmPolicy: "allowlist",
+      allowFrom: [
+        // Formato: "tg:<tu_user_id_numérico>"
+        // Obtener con @userinfobot en Telegram
+        "tg:${TELEGRAM_ALLOWED_USER_ID}",
+      ],
+      healthMonitor: {
+        enabled: true,
+      },
+    },
+  },
+
+  // ── Sesiones ───────────────────────────────────────────────────────────────
+  session: {
+    // Una sesión por canal+peer (separar Telegram del web UI)
+    dmScope: "per-channel-peer",
+    threadBindings: {
+      enabled: true,
+      idleHours: 24,
+    },
+  },
+
+  // ── Gateway ────────────────────────────────────────────────────────────────
+  gateway: {
+    port: 18789,
+    bind: "127.0.0.1",
+    reload: {
+      mode: "hybrid",
+      debounceMs: 300,
+    },
+  },
+}
