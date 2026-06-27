@@ -4,6 +4,9 @@
 // Conecta al gateway, autentica como operador y expone eventos reales
 // en http://localhost:3001/events (CORS abierto para file:// y localhost).
 //
+// Para exponer el relay vía Cloudflare Tunnel y leerlo desde un vault público
+// (ej. Vercel), pasar el origen con VAULT_PUBLIC_ORIGIN=https://taller-vault.vercel.app
+//
 // Uso: node demo/vault/relay.mjs
 
 import { readFileSync, existsSync } from "fs";
@@ -157,6 +160,26 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:3000",
   "http://localhost:3000",
 ]);
+
+// Origen público del vault (ej. el deploy en Vercel) cuando el relay se expone
+// vía Cloudflare Tunnel. Se pasa por env var para no abrir CORS a cualquiera.
+// Acepta varios separados por coma. Se normaliza con .origin para evitar
+// que un path o query se cuele en la comparación.
+for (const raw of (process.env.VAULT_PUBLIC_ORIGIN || "").split(",")) {
+  const value = raw.trim();
+  if (!value) continue;
+  try {
+    const { origin, protocol } = new URL(value);
+    if (protocol !== "https:" && protocol !== "http:") {
+      console.warn(`[relay] VAULT_PUBLIC_ORIGIN ignorado (protocolo no soportado): ${value}`);
+      continue;
+    }
+    ALLOWED_ORIGINS.add(origin);
+    console.log(`[relay] Origen público permitido para CORS: ${origin}`);
+  } catch {
+    console.warn(`[relay] VAULT_PUBLIC_ORIGIN inválido, ignorado: ${value}`);
+  }
+}
 
 const server = createServer((req, res) => {
   const origin = req.headers["origin"] || "";

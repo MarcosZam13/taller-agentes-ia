@@ -222,6 +222,10 @@ openclaw --version
 
 ### 5. Clonar e instalar
 
+> **Antes de clonar:** subí este repo a tu propia cuenta de GitHub y reemplazá
+> `TU-USUARIO` por tu usuario. Si el repo es privado, configurá una credencial
+> (token o SSH key) en la Pi para que el `git clone` y los `git pull` funcionen.
+
 ```bash
 git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
 cd taller-agentes-ia
@@ -351,9 +355,9 @@ cloudflared tunnel create taller-vault
 cloudflared tunnel route dns taller-vault vault.TU_DOMINIO.com
 # Crear el config del tunnel:
 mkdir -p ~/.cloudflared
-cat > ~/.cloudflared/config.yml << 'EOF'
+cat > ~/.cloudflared/config.yml << EOF
 tunnel: <ID_DEL_TUNNEL>
-credentials-file: /home/pi/.cloudflared/<ID_DEL_TUNNEL>.json
+credentials-file: $HOME/.cloudflared/<ID_DEL_TUNNEL>.json
 ingress:
   - hostname: vault.TU_DOMINIO.com
     service: http://localhost:3001
@@ -371,6 +375,9 @@ Requires=openclaw-gateway.service
 [Service]
 Type=simple
 WorkingDirectory=%h/taller-agentes-ia/demo/vault
+# Permite que el vault servido desde Vercel lea el relay vía Cloudflare (CORS).
+# Sin esta línea el vault público muestra OFFLINE aunque el tunnel funcione.
+Environment=VAULT_PUBLIC_ORIGIN=https://taller-vault.vercel.app
 ExecStart=/usr/bin/node relay.mjs
 Restart=on-failure
 RestartSec=5
@@ -429,4 +436,4 @@ curl https://vault.TU_DOMINIO.com/events   # debe devolver JSON con connected:tr
 | Bot no responde en Telegram | Gateway caído o token inválido | `node setup/check.js` |
 | `openclaw: command not found` | PATH no actualizado | `source ~/.bashrc` o reiniciar terminal |
 | Groq da 429 (rate limit) | Demasiadas requests seguidas | Esperar 60s o cambiar a OpenRouter |
-| Vault en Vercel muestra OFFLINE | Relay de Pi no accesible | Verificar `systemctl --user status vault-relay.service` y el tunnel |
+| Vault en Vercel muestra OFFLINE | Relay no accesible **o** CORS sin el origen de Vercel | 1) `systemctl --user status vault-relay.service` y el tunnel; 2) confirmar que el service tiene `Environment=VAULT_PUBLIC_ORIGIN=https://taller-vault.vercel.app` (ver logs: `journalctl --user -u vault-relay.service` debe mostrar "Origen público permitido para CORS") |
