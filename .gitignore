@@ -1,4 +1,19 @@
+# Credenciales y config local
 .env
 *.local
+
+# Dependencias
 node_modules/
+
+# Datos generados por las skills
 skills/*/data/
+
+# Material privado del facilitador (no se comparte con asistentes)
+*.docx
+.~lock.*#
+
+# Basura de editores / SO
+*.swp
+*~
+.DS_Store
+Thumbs.db
