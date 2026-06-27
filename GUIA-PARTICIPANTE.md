@@ -51,7 +51,7 @@ source ~/.bashrc        # si usás zsh: usá ~/.zshrc en ambas líneas
 ### Paso 3 — Descargar el proyecto
 
 ```bash
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 ```
 
@@ -134,7 +134,7 @@ $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 Abrí **Git Bash** (botón derecho en una carpeta → *Git Bash Here*, o desde el menú inicio):
 
 ```bash
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 ```
 

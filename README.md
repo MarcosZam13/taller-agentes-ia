@@ -31,7 +31,7 @@ Construimos 4 agentes reales usando [OpenClaw](https://docs.openclaw.ai) y Groq 
 
 ```bash
 # 1. Clonar
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 
 # 2. Configurar credenciales

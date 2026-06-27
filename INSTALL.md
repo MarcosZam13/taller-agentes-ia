@@ -46,7 +46,7 @@ source ~/.bashrc
 ### 3. Clonar e instalar
 
 ```bash
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
 nano .env   # completar GROQ_API_KEY y Telegram (ver abajo)
@@ -120,7 +120,7 @@ $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 ### 3. Clonar e instalar
 
 ```powershell
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 Copy-Item .env.example .env
 notepad .env   # completar credenciales
@@ -222,12 +222,12 @@ openclaw --version
 
 ### 5. Clonar e instalar
 
-> **Antes de clonar:** subí este repo a tu propia cuenta de GitHub y reemplazá
-> `TU-USUARIO` por tu usuario. Si el repo es privado, configurá una credencial
-> (token o SSH key) en la Pi para que el `git clone` y los `git pull` funcionen.
+> **Nota:** el repo es público, así que el `git clone` funciona sin credenciales.
+> Si lo pasás a privado, configurá un token o SSH key en la Pi para que el
+> `git clone` y los `git pull` funcionen.
 
 ```bash
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
 nano .env   # completar credenciales

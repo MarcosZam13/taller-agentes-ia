@@ -80,7 +80,7 @@ Cada participante necesita:
 
 ```bash
 # Comandos que cada participante ejecuta
-git clone https://github.com/TU-USUARIO/taller-agentes-ia.git
+git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
 nano .env   # solo GROQ_API_KEY es obligatorio
