@@ -18,6 +18,9 @@ Construimos 4 agentes reales usando [OpenClaw](https://docs.openclaw.ai) y Groq 
 
 **Tiempo total estimado: 10–15 minutos**
 
+> 👋 **¿Sos participante del taller?** Seguí la [**Guía del participante**](GUIA-PARTICIPANTE.md):
+> instalación local simple para Windows y Linux, paso a paso, sin nada de servidores ni nube.
+
 ### Prerequisitos
 
 - **Node.js 22+** — instalar con [fnm](https://github.com/Schniz/fnm): `curl -fsSL https://fnm.vercel.app/install | bash`
@@ -155,7 +158,8 @@ node setup/check.js
 ```
 taller-agentes-ia/
 ├── README.md               # Este archivo
-├── INSTALL.md              # Instalación detallada (Linux / Windows / Pi)
+├── GUIA-PARTICIPANTE.md    # Guía simple para asistentes (instalación local)
+├── INSTALL.md              # Instalación detallada + servidor Pi / Cloudflare / Vercel
 ├── TALLER.md               # Guía del facilitador con agenda y troubleshooting
 ├── AGENTS.md               # Instrucciones base del agente (workspace)
 ├── .env.example            # Template de variables de entorno

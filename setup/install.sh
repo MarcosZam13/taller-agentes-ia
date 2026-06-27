@@ -65,21 +65,26 @@ source "$REPO_DIR/.env"
 set +a
 
 # Verificar que al menos un proveedor esté configurado
+HAS_GROQ=false
 HAS_AZURE=false
 HAS_OPENROUTER=false
+[[ -n "${GROQ_API_KEY:-}" ]] && HAS_GROQ=true
 [[ -n "${AZURE_OPENAI_API_KEY:-}" && -n "${AZURE_OPENAI_ENDPOINT:-}" ]] && HAS_AZURE=true
 [[ -n "${OPENROUTER_API_KEY:-}" ]] && HAS_OPENROUTER=true
 
-if [[ "$HAS_AZURE" == false && "$HAS_OPENROUTER" == false ]]; then
+if [[ "$HAS_GROQ" == false && "$HAS_AZURE" == false && "$HAS_OPENROUTER" == false ]]; then
   error "Se requiere al menos un proveedor en .env:
-    Opción A — Azure OpenAI: AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY
-    Opción B — OpenRouter:   OPENROUTER_API_KEY (https://openrouter.ai)"
+    Opción A (recomendada) — Groq: GROQ_API_KEY (https://console.groq.com, gratis)
+    Opción B — OpenRouter:        OPENROUTER_API_KEY (https://openrouter.ai)
+    Opción C — Azure OpenAI:      AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY"
 fi
 
-if [[ "$HAS_AZURE" == true ]]; then
+# Prioridad: Groq > Azure > OpenRouter (igual que apply-config.mjs)
+if [[ "$HAS_GROQ" == true ]]; then
+  info "Proveedor activo: Groq (llama-3.1-70b-versatile)"
+elif [[ "$HAS_AZURE" == true ]]; then
   info "Proveedor activo: Azure OpenAI ($AZURE_OPENAI_ENDPOINT)"
 else
-  warn "Azure no configurado — usando OpenRouter como proveedor principal"
   info "Proveedor activo: OpenRouter"
 fi
 
