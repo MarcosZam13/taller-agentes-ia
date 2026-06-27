@@ -266,11 +266,34 @@ echo "OLLAMA_BASE_URL=http://localhost:11434" >> .env
 
 Para conectar Ollama a OpenClaw, agregar en `.env`:
 ```env
-# Ollama es compatible con la API de OpenAI
-OLLAMA_BASE_URL=http://localhost:11434/v1
+# La URL va SIN /v1 — apply-config.mjs le agrega /v1 al provider de chat.
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 Y ejecutar `node setup/apply-config.mjs` — el script lo detecta automáticamente.
+
+### 8. (Opcional) Memoria semántica con embeddings locales
+
+La búsqueda de memoria de OpenClaw usa **embeddings** y por defecto apunta al
+proveedor `openai` (API key de pago). Groq **no** hace embeddings, así que sin
+configurar nada la memoria queda en modo palabras clave (FTS). Para tener
+búsqueda **vectorial** local y gratis con Ollama, hay un script que hace todo:
+
+```bash
+bash setup/setup-memory-ollama.sh
+```
+
+Ese script instala Ollama (si falta), descarga `nomic-embed-text`, agrega
+`OLLAMA_BASE_URL`/`OLLAMA_EMBED_MODEL` al `.env`, aplica la config (registra el
+provider `ollama-embed` + el bloque `memorySearch`) y reindexa la memoria.
+
+Verificar:
+```bash
+openclaw memory status   # Provider debe decir "ollama-embed", sin "paused"
+```
+
+> Para los asistentes del taller esto es **opcional/avanzado**: la instalación
+> base funciona con memoria por palabras clave. Esto suma búsqueda semántica.
 
 ### Acceder al dashboard desde otra máquina (red local)
 

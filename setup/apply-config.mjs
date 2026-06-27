@@ -34,6 +34,7 @@ const {
   AZURE_OPENAI_API_KEY = "",
   OPENROUTER_API_KEY = "",
   OLLAMA_BASE_URL = "",
+  OLLAMA_EMBED_MODEL = "nomic-embed-text",
   TELEGRAM_BOT_TOKEN = "",
   TELEGRAM_ALLOWED_USER_ID = "",
 } = process.env;
@@ -135,6 +136,15 @@ if (hasOllama) {
       { id: "llama3.2:1b",  name: "Llama 3.2 1B Fast (Local/Pi)", contextWindow: 8192, maxTokens: 2048 },
     ],
   };
+
+  // Provider dedicado para embeddings de memoria (api nativa "ollama", SIN /v1).
+  // Separado del de chat para no mezclar el endpoint openai-completions con el
+  // de embeddings. Habilita la búsqueda semántica de memoria (memorySearch).
+  providers["ollama-embed"] = {
+    baseUrl: OLLAMA_BASE_URL.replace(/\/$/, ""),
+    api: "ollama",
+    models: [{ id: OLLAMA_EMBED_MODEL }],
+  };
 }
 
 // Prioridad: Groq > Azure > OpenRouter > Ollama
@@ -175,6 +185,17 @@ const additions = {
       },
       models: modelAllowlist,
       skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
+      // Memoria semántica: solo si hay Ollama (embeddings locales). Sin esto, la
+      // búsqueda de memoria queda en modo palabras clave (FTS), que es el default.
+      ...(hasOllama
+        ? {
+            memorySearch: {
+              provider: "ollama-embed",
+              model: OLLAMA_EMBED_MODEL,
+              query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
+            },
+          }
+        : {}),
     },
     list: [
       {
@@ -219,6 +240,7 @@ const providerName = hasGroq ? "Groq" : hasAzure ? "Azure OpenAI" : hasOpenRoute
 console.log(`✓ Config escrito en ${configPath}`);
 console.log(`  Proveedor activo: ${providerName} → ${primaryModel}`);
 if (hasOllama)   console.log("  Ollama: configurado (modo local)");
+if (hasOllama)   console.log(`  Memoria semántica: embeddings con ollama-embed/${OLLAMA_EMBED_MODEL}`);
 if (hasTelegram) console.log("  Telegram: configurado");
 console.log("  El gateway recargará automáticamente (hybrid mode)");
 

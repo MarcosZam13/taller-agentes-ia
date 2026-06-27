@@ -169,6 +169,7 @@ taller-agentes-ia/
 │   ├── install.sh          # Instalación completa en Linux
 │   ├── check.js            # Verificación del entorno
 │   ├── apply-config.mjs    # Aplica config de proveedores al gateway
+│   ├── setup-memory-ollama.sh # (Opcional) Memoria semántica con embeddings Ollama
 │   ├── open-dashboard.sh   # Abre dashboard de OpenClaw con auth correcto
 │   └── open-vault.sh       # Arranca relay + vault dashboard
 ├── skills/
