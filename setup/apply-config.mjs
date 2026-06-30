@@ -168,19 +168,26 @@ const primaryModel = hasOpenRouter ? "openrouter/openai/gpt-4o-mini"
 // bootstrap (workaround degradado; las tareas que escriben archivos pueden fallar).
 const groqIsPrimary = !hasOpenRouter && !hasAzure && hasGroq;
 
+// Fallbacks: SOLO modelos con tool-calling nativo confiable (otro gpt-4o-mini).
+// NO se usa Llama ni ollama-3b como fallback: emiten las tool calls como texto y
+// rompen las skills. Mejor que el primario falle visible a que caiga a un modelo
+// que "responde" pero no ejecuta nada.
 const fallbackModels = [
-  ...(hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"]    : []),
-  ...(hasAzure && !hasOpenRouter ? ["azure/gpt-4o-mini"]   : []),
-  ...(hasOllama ? ["ollama/llama3.2:3b"]                   : []),
+  ...(hasOpenRouter && hasAzure ? ["azure/gpt-4o-mini"] : []),
 ].filter((m) => m !== primaryModel);
 
+// Allowlist: SOLO modelos con tool-calling nativo. CLAVE: NO incluir
+// openrouter/meta-llama/llama-3.3-70b-instruct ni ollama-3b. Si están en el
+// allowlist, el auto-fallback/health-monitor de OpenClaw puede CAMBIAR la sesión
+// a ellos cuando el primario tiene un hipo — y como emiten tool calls como texto,
+// el agente deja de ejecutar las skills (se ve el JSON crudo en el chat). Groq
+// 70B sí hace tool-calling nativo (Groq soporta functions), así que se permite
+// sólo cuando Groq es el único proveedor.
 const modelAllowlist = {};
-if (hasOpenRouter) modelAllowlist["openrouter/meta-llama/llama-3.3-70b-instruct"] = { alias: "llama70b" };
-if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"]  = { alias: "or-mini" };
-if (hasGroq)       modelAllowlist["groq/llama-3.3-70b-versatile"]  = { alias: "groq70b" };
-if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "groq8b" };
-if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
-if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "ollama-local" };
+if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"] = { alias: "gpt4omini" };
+if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]             = { alias: "azure-mini" };
+if (groqIsPrimary) modelAllowlist["groq/llama-3.3-70b-versatile"] = { alias: "groq70b" };
+if (!hasOpenRouter && !hasAzure && !hasGroq && hasOllama) modelAllowlist["ollama/llama3.2:3b"] = { alias: "ollama-local" };
 
 // ── Herramientas ──────────────────────────────────────────────────────────────
 // exec HABILITADO sin aprobación: las 4 skills del taller funcionan ejecutando un
@@ -197,7 +204,24 @@ const toolsConfig = {
   // exec → el motor de la skill. NO se tocan las tools de infraestructura de exec
   // (gateway/process/nodes) porque exec las usa como escape host; denegarlas
   // rompe exec ("bundled disabled").
-  deny: ["write", "file_write", "apply_patch", "skill_workshop", "create_goal", "update_goal", "get_goal"],
+  //
+  // `pdf`: OpenClaw trae una tool NATIVA `pdf` que necesita un "PDF model" (visión).
+  // Sin ese modelo configurado devuelve "No PDF model configured." y el agente, ante
+  // "leé este PDF", la elige en vez de correr pdf.js → el caso pdf-extractor se rompe.
+  // Se deniega para forzar la vía exec → pdf.js (pdftotext, determinista, sin modelo).
+  //
+  // `sessions_spawn`/`sessions_yield`/`subagents`: vías para delegar el pedido a un
+  // subagente en vez de ejecutar el script. Se deniegan para que el agente resuelva
+  // el pedido él mismo con exec (regla "PROHIBIDO delegar a un subagente" de AGENTS.md).
+  //
+  // OJO: deepMerge REEMPLAZA arrays (no concatena), así que esta lista es la fuente de
+  // verdad al re-ejecutar el script — toda deny que deba persistir tiene que estar acá.
+  deny: [
+    "write", "file_write", "apply_patch",
+    "skill_workshop", "create_goal", "update_goal", "get_goal",
+    "pdf",
+    "sessions_spawn", "sessions_yield", "subagents",
+  ],
 };
 // Recorte de contexto SOLO si Groq es el primario: OpenClaw inyecta ~29k tokens
 // (system prompt + esquemas de TODAS las tools) y el free tier de Groq rechaza
@@ -277,6 +301,19 @@ if (hasTelegram) {
 
 // ── Merge y escribir ──────────────────────────────────────────────────────────
 const merged = deepMerge(existing, additions);
+
+// deepMerge fusiona objetos (no borra claves viejas). El allowlist de modelos DEBE
+// sobrescribirse por completo: si quedara una clave vieja como
+// openrouter/meta-llama/llama-3.3-70b-instruct, el auto-fallback de OpenClaw podría
+// cambiar a ese modelo (que rompe las skills). Forzamos el valor exacto.
+if (merged.agents?.defaults) {
+  merged.agents.defaults.models = modelAllowlist;
+  merged.agents.defaults.model = {
+    primary: primaryModel,
+    ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
+  };
+}
+
 writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 
 const providerName = hasOpenRouter ? "OpenRouter" : hasAzure ? "Azure OpenAI" : hasGroq ? "Groq" : "Ollama (local)";
