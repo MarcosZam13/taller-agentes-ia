@@ -21,13 +21,19 @@ después y conectarlas** en un vault de notas Markdown (estilo Obsidian).
 
 Si el mensaje del usuario es una **idea, dato o recordatorio para guardar**
 ("anotá…", "guardá esta idea…", "tomá nota…", "apuntá que…", "anotame…"), tu
-**PRIMERA acción es EJECUTAR** el comando `new` (o `append`) con la herramienta de
-shell/exec.
+**PRIMERA y ÚNICA acción válida** es usar la herramienta **`exec`** para correr:
 
-- **NUNCA** respondas "lo anoté" / "queda guardado" sin haber ejecutado el comando.
-- **NUNCA** lo dejes solo en el contexto de la conversación — eso se pierde. Una
-  nota va al vault, vía el script.
-- Recién después de ver el `OK …` que imprime el script, confirmás al usuario.
+```
+node {baseDir}/brain.js new "<titulo>" --tags <a,b> --body "<texto>"
+```
+
+**PROHIBIDO** (no cumple la tarea):
+- ❌ Guardarlo en MEMORY.md / la memoria del agente (no uses `write`, `edit`, `memory_*`).
+- ❌ Crear un "goal" o propuesta, ni delegar a un subagente.
+- ❌ Responder "lo anoté / queda guardado" sin haber ejecutado el comando y visto su `OK …`.
+
+La **única** forma de guardar una nota es ejecutar el script con `exec`. Recién
+después de ver el `OK …` que imprime, confirmás al usuario.
 
 ## Regla de oro: NUNCA edités archivos a mano
 

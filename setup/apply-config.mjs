@@ -151,11 +151,14 @@ if (hasOllama) {
 }
 
 // Prioridad: OpenRouter > Azure > Groq > Ollama.
-// OpenRouter es el backend recomendado del taller: contexto completo y sin el
-// techo TPM del free tier de Groq, así que corre las tareas agénticas (escribir
-// archivos, ejecutar código) de forma fiable. Groq queda como opción para quien
-// solo tenga esa key, pero con recorte de contexto (ver groqIsPrimary).
-const primaryModel = hasOpenRouter ? "openrouter/meta-llama/llama-3.3-70b-instruct"
+// Modelo primario = gpt-4o-mini (vía OpenRouter). IMPORTANTE: se eligió gpt-4o-mini
+// y NO Llama 3.3 70B porque, probado end-to-end, Llama 3.3 70B vía OpenRouter NO
+// hace tool-calling nativo confiable — emite las llamadas a herramientas como
+// TEXTO (bloque ```json) en vez del formato real, lo que rompe las 4 skills
+// agénticas (ejecutar scripts con exec). gpt-4o-mini hace tool-calls nativas y
+// ejecuta los scripts correctamente. Llama 3.3 70B queda disponible en el
+// allowlist (alias llama70b) para demostrar la diferencia en el taller.
+const primaryModel = hasOpenRouter ? "openrouter/openai/gpt-4o-mini"
                    : hasAzure      ? "azure/gpt-4o-mini"
                    : hasGroq       ? "groq/llama-3.3-70b-versatile"
                                    : "ollama/llama3.2:3b";
@@ -179,14 +182,31 @@ if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "g
 if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
 if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "ollama-local" };
 
+// ── Herramientas ──────────────────────────────────────────────────────────────
+// exec HABILITADO sin aprobación: las 4 skills del taller funcionan ejecutando un
+// script determinista (node expense.js / brain.js / pdf.js / runpy.js). Sin exec
+// el agente no puede correr nada y las skills no sirven. security:"full"+ask:"off"
+// es aceptable porque el agente está restringido a un único usuario de Telegram
+// (allowFrom) en su propia máquina; las SKILL.md piden confirmación para acciones
+// destructivas.
+const toolsConfig = {
+  exec: { security: "full", ask: "off" },
+  // El agente OpenClaw trae ~40 herramientas; para "registrá X" tiende a elegir
+  // una vía de guardado genérica (write/nota/goal/propuesta) en vez de ejecutar
+  // el script de la skill. Se deniegan esas vías de escape para empujarlo a usar
+  // exec → el motor de la skill. NO se tocan las tools de infraestructura de exec
+  // (gateway/process/nodes) porque exec las usa como escape host; denegarlas
+  // rompe exec ("bundled disabled").
+  deny: ["write", "file_write", "apply_patch", "skill_workshop", "create_goal", "update_goal", "get_goal"],
+};
+// Recorte de contexto SOLO si Groq es el primario: OpenClaw inyecta ~29k tokens
+// (system prompt + esquemas de TODAS las tools) y el free tier de Groq rechaza
+// requests > 12k TPM. Con OpenRouter/Azure el contexto entra holgado.
+if (groqIsPrimary) toolsConfig.profile = "minimal";
+
 const additions = {
   models: { providers },
-  // ── Recorte de contexto SOLO si Groq es el primario ─────────────────────────
-  // OpenClaw inyecta ~29k tokens/mensaje (system prompt + esquemas de TODAS las
-  // tools). El free tier de Groq rechaza requests > 12k TPM, así que con Groq
-  // primario se usa el perfil "minimal" (~10k). Con OpenRouter/Azure el contexto
-  // entra holgado, así que se dejan las tools COMPLETAS (mejor ejecución de skills).
-  ...(groqIsPrimary ? { tools: { profile: "minimal" } } : {}),
+  tools: toolsConfig,
   gateway: {
     // El relay conecta desde http://127.0.0.1:18789 (mismo origen que el gateway).
     // No se necesita "null" — el vault dashboard NO conecta directamente al WS,
@@ -198,6 +218,11 @@ const additions = {
   agents: {
     defaults: {
       workspace: "~/.openclaw/workspace",
+      // sandbox OFF: exec corre directo en el host (runtime "direct"). Sin esto, el
+      // sandbox "bundled" está deshabilitado por defecto y exec falla con
+      // "bundled (disabled by default)", así que las skills no pueden correr scripts.
+      // Aceptable en el taller: agente restringido a un único usuario de Telegram.
+      sandbox: { mode: "off" },
       // Cap de bootstrap (AGENTS.md, SOUL.md, etc.) sólo con Groq primario, para
       // dejar headroom bajo su techo de 12k. Con OpenRouter/Azure no hace falta.
       ...(groqIsPrimary ? { bootstrapTotalMaxChars: 1200 } : {}),

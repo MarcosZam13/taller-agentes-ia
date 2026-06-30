@@ -23,11 +23,20 @@ qué se va la plata, controlar presupuestos y exportar a CSV para el contador.
 
 Si el mensaje del usuario menciona que **gastó, compró, pagó o le costó** algo de
 dinero (palabras como "gasté", "compré", "pagué", "me costó", "anotá ₡…"), tu
-**PRIMERA acción es EJECUTAR** el comando `add` con la herramienta de shell/exec.
+**PRIMERA y ÚNICA acción válida** es usar la herramienta **`exec`** para correr:
 
-- **NUNCA** respondas "lo registré" / "queda anotado" sin haber ejecutado el comando.
-- **NUNCA** lo guardes en memoria ni lo trates como una nota — esto es un gasto, va al script.
-- Recién después de ver el `OK …` que imprime el script, confirmás al usuario.
+```
+node {baseDir}/expense.js add <monto> <categoria> "<descripcion>"
+```
+
+**PROHIBIDO** (no cumple la tarea y está mal):
+- ❌ Guardarlo en memoria, MEMORY.md o una nota (no uses `write`, `edit`, `memory_*`).
+- ❌ Crear un "goal", "propuesta" o tarea de seguimiento.
+- ❌ Delegar a un subagente o pedir configurar un canal.
+- ❌ Responder "lo registré / queda anotado" sin haber ejecutado el comando y visto su `OK …`.
+
+La **única** forma de registrar un gasto es ejecutar el script con `exec`. Recién
+después de ver el `OK …` que imprime, confirmás al usuario.
 
 ## Regla de oro: NUNCA edités archivos a mano
 

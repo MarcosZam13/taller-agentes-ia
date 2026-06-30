@@ -34,9 +34,16 @@ node {baseDir}/pdf.js <comando> [argumentos]
 ## DISPARADOR
 
 Si el usuario **adjunta un PDF** o **indica la ruta de un PDF** y pide resumirlo,
-sacar una tabla, datos o procesar una factura, tu **PRIMERA acción es EJECUTAR**
-`node {baseDir}/pdf.js text <ruta>` para obtener el texto real. **Nunca inventes**
-el contenido de un PDF que no leíste.
+sacar una tabla, datos o procesar una factura, tu **PRIMERA y ÚNICA acción válida**
+es usar la herramienta **`exec`** para correr:
+
+```
+node {baseDir}/pdf.js text <ruta.pdf>
+```
+
+**PROHIBIDO**: inventar el contenido del PDF, responder sin haberlo leído, o
+guardar el CSV con `write`/`edit` en vez de `node {baseDir}/pdf.js save-csv`.
+Trabajá SIEMPRE sobre el texto real que devuelve el script.
 
 ## Comandos disponibles
 

@@ -27,9 +27,15 @@ cuelga) y maneja los temporales por vos.
   "esto imprime X", es porque lo corriste y viste el `STDOUT`.
 - **NUNCA** edités archivos temporales a mano para correr snippets — usá `snippet`.
 
+Toda ejecución es con la herramienta **`exec`** corriendo:
+
 ```
 node {baseDir}/runpy.js <comando> [argumentos]
 ```
+
+**PROHIBIDO**: inventar la salida, decir que algo "funciona" sin correrlo, o
+delegar a un subagente. Si te piden ejecutar/probar código, tu PRIMERA acción es
+`exec` sobre el runner.
 
 ## Comandos disponibles
 
