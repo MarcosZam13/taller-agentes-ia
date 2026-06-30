@@ -7,6 +7,7 @@ node_modules/
 
 # Datos generados por las skills
 skills/*/data/
+skills/*/exports/
 
 # Material privado del facilitador (no se comparte con asistentes)
 *.docx

@@ -184,11 +184,14 @@ else { warn "Gateway tardando en responder — continuar igual" }
 # ── 6. Instalar las 4 skills ──────────────────────────────────────────────────
 $workspace = "$env:USERPROFILE\.openclaw\workspace\skills"
 foreach ($skill in @("expense-tracker", "second-brain", "pdf-extractor", "dev-assistant")) {
-  $src = "$REPO_DIR\skills\$skill\SKILL.md"
+  # Se copia el directorio COMPLETO (no solo SKILL.md): varias skills traen un
+  # motor .js determinista (expense.js, brain.js, pdf.js, runpy.js) que el agente
+  # ejecuta. Si solo se copiara SKILL.md, esas skills quedarían rotas.
+  $src = "$REPO_DIR\skills\$skill"
   $dst = "$workspace\$skill"
-  if (Test-Path $src) {
+  if (Test-Path "$src\SKILL.md") {
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
-    Copy-Item $src "$dst\SKILL.md" -Force
+    Copy-Item "$src\*" $dst -Recurse -Force
     ok "Skill $skill instalada"
   } else {
     warn "Skill $skill no encontrada en skills\$skill\SKILL.md"

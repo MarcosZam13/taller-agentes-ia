@@ -119,11 +119,14 @@ node "$REPO_DIR/setup/apply-config.mjs" && info "Configuración aplicada" || \
   warn "apply-config.mjs falló — ejecutar manualmente: node setup/apply-config.mjs"
 
 # 7. Instalar las 4 skills en el workspace
+# Se copia el directorio COMPLETO de cada skill (no solo SKILL.md): varias skills
+# traen un motor .js determinista (expense.js, brain.js, pdf.js, runpy.js) que el
+# agente ejecuta. Si solo se copiara SKILL.md, esas skills quedarían rotas.
 for SKILL in expense-tracker second-brain pdf-extractor dev-assistant; do
   SKILL_DEST="$HOME/.openclaw/workspace/skills/$SKILL"
-  mkdir -p "$SKILL_DEST"
   if [[ -f "$REPO_DIR/skills/$SKILL/SKILL.md" ]]; then
-    cp "$REPO_DIR/skills/$SKILL/SKILL.md" "$SKILL_DEST/"
+    mkdir -p "$SKILL_DEST"
+    cp -r "$REPO_DIR/skills/$SKILL/." "$SKILL_DEST/"
     info "Skill $SKILL instalada en workspace"
   else
     warn "Skill $SKILL no encontrada en skills/$SKILL/SKILL.md — omitida"

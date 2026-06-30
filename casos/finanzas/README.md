@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Principiante  
-**Modelo:** Groq — Llama 3.1 70B  
+**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -55,7 +55,7 @@ Verificar que `expense-tracker 💰` aparece en la lista. Si no:
 ```bash
 # Copiar manualmente la skill
 mkdir -p ~/.openclaw/workspace/skills/expense-tracker
-cp skills/expense-tracker/SKILL.md ~/.openclaw/workspace/skills/expense-tracker/
+cp -r skills/expense-tracker/. ~/.openclaw/workspace/skills/expense-tracker/
 
 # Recargar skills (hot-reload, no reinicio)
 openclaw config set agents.defaults.skills '["expense-tracker"]'

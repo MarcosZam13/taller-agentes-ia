@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Avanzado  
-**Modelo:** Groq — Llama 3.1 70B  
+**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
 **Plataforma:** Linux / Raspberry Pi / WSL2
 
 ---
@@ -49,7 +49,7 @@ Verificar que `dev-assistant 💻` aparece. Si no:
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/dev-assistant
-cp skills/dev-assistant/SKILL.md ~/.openclaw/workspace/skills/dev-assistant/
+cp -r skills/dev-assistant/. ~/.openclaw/workspace/skills/dev-assistant/
 ```
 
 ---

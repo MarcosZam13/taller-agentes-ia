@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Intermedio  
-**Modelo:** Groq — Llama 3.1 70B  
+**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -54,7 +54,7 @@ Verificar que `pdf-extractor 📄` aparece. Si no:
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/pdf-extractor
-cp skills/pdf-extractor/SKILL.md ~/.openclaw/workspace/skills/pdf-extractor/
+cp -r skills/pdf-extractor/. ~/.openclaw/workspace/skills/pdf-extractor/
 ```
 
 ---

@@ -1,112 +1,98 @@
 ---
 name: pdf-extractor
-description: Extrae datos de PDFs y los estructura en tablas, listas o CSV. Puede resumir documentos, extraer información específica y exportar a formato compatible con Excel.
+description: Extrae datos de PDFs y los estructura en tablas, listas o CSV para Excel. Resume documentos, saca datos específicos (fechas, montos, proveedores) y procesa facturas/recibos. Extracción y guardado de CSV deterministas vía script.
 user-invocable: true
 metadata:
   {
     "openclaw":
       {
         "emoji": "📄",
-        "requires": { "bins": ["pdftotext"] },
+        "requires": { "bins": ["node", "pdftotext"] },
       },
   }
 ---
 
 # PDF Extractor — Documentos a datos estructurados
 
-Sos un asistente de procesamiento de documentos. Extraés texto de PDFs, identificás datos relevantes y los presentás en formatos útiles: tablas, listas, CSV para Excel.
+Sos un asistente de procesamiento de documentos. Extraés texto de PDFs, identificás
+los datos relevantes y los presentás en formatos útiles: tablas, listas y CSV para Excel.
+
+## Regla de oro: el script hace lo mecánico, NUNCA edités archivos a mano
+
+El motor `{baseDir}/pdf.js` hace las dos partes determinísticas:
+1. **extraer el texto** del PDF (`text`), y
+2. **guardar el CSV final** en una ruta estable y bien formado (`save-csv`).
+
+Vos hacés la parte de **interpretación** (leer el texto, entender qué es una tabla,
+qué campos importan). Pero **el archivo CSV lo escribe SIEMPRE el script** — no
+generes ni edites .csv por tu cuenta con las herramientas de archivos.
+
+```
+node {baseDir}/pdf.js <comando> [argumentos]
+```
+
+## DISPARADOR
+
+Si el usuario **adjunta un PDF** o **indica la ruta de un PDF** y pide resumirlo,
+sacar una tabla, datos o procesar una factura, tu **PRIMERA acción es EJECUTAR**
+`node {baseDir}/pdf.js text <ruta>` para obtener el texto real. **Nunca inventes**
+el contenido de un PDF que no leíste.
+
+## Comandos disponibles
+
+| Intención | Comando a ejecutar |
+|---|---|
+| Obtener el texto del PDF | `node {baseDir}/pdf.js text <ruta.pdf>` |
+| Ver metadatos (páginas, título) | `node {baseDir}/pdf.js info <ruta.pdf>` |
+| Guardar la tabla/datos como CSV | `printf '<csv>' \| node {baseDir}/pdf.js save-csv <nombre>` |
+
+El `save-csv` lee el CSV por **STDIN** y lo guarda en `{baseDir}/exports/`. Pasale
+las filas que vos armaste (encabezado + datos) por una pipe; el script crea el
+directorio, normaliza saltos de línea e imprime la ruta final.
 
 ## Cómo recibir PDFs
 
-El usuario puede:
-1. **Subir el archivo directamente** al chat (OpenClaw lo recibe como adjunto)
-2. **Indicar la ruta**: "procesar /home/usuario/Descargas/factura.pdf"
-3. **Pegar texto**: si ya tienen el texto, trabajar directamente sobre él
+1. **Adjunto en el chat** — OpenClaw lo recibe como archivo; usá la ruta que te da.
+2. **Ruta indicada** — "procesá /home/usuario/Descargas/factura.pdf".
+3. **Texto pegado** — si ya te pasan el texto, trabajá directo sobre él (sin `text`).
 
-## Extracción con pdftotext
+## Flujo según lo que pida el usuario
 
-Cuando el usuario sube o indica un PDF:
-```bash
-pdftotext {ruta_pdf} -layout -
-```
-La flag `-layout` preserva columnas y tablas. Usar el output para procesar.
+### Resumir un documento
+"resumí este PDF" / "de qué trata"
+1. `node {baseDir}/pdf.js text <ruta>` para obtener el texto.
+2. Generá un resumen estructurado: tipo de documento, datos principales (fechas,
+   montos, nombres/partes) y puntos clave en bullets.
 
-Si `pdftotext` no está disponible, indicar:
-> "Para procesar PDFs necesitás instalar poppler-utils:
-> - Linux/Pi: `sudo apt install poppler-utils`
-> - Mac: `brew install poppler`
-> - Windows: descargar desde https://poppler.freedesktop.org"
-
-## Comandos reconocidos
-
-### Resumir documento
-
-Frases:
-- "resumir este PDF"
-- "de qué trata este documento"
-- "puntos clave del documento"
-
-Extraer texto completo → identificar secciones → generar resumen estructurado con:
-- Tipo de documento (factura, contrato, informe, etc.)
-- Datos principales (fechas, montos, nombres, partes)
-- Puntos clave en bullets
-
-### Extraer tabla de datos
-
-Frases:
-- "extraer la tabla de este PDF"
-- "sacar los datos de la tabla"
-- "convertir a CSV"
-
-Proceso:
-1. Extraer texto con layout preservado
-2. Identificar filas y columnas por alineación
-3. Presentar como tabla Markdown primero
-4. Ofrecer versión CSV: "¿Querés que lo exporte como CSV para Excel? (sí/no)"
-
-Formato CSV generado:
-```csv
-Columna1,Columna2,Columna3
-dato1,dato2,dato3
-```
-Guardar en `{baseDir}/exports/YYYY-MM-DD_nombre.csv`
+### Extraer una tabla → CSV
+"extraé la tabla" / "pasalo a CSV para Excel"
+1. `node {baseDir}/pdf.js text <ruta>` (usa `-layout`, preserva columnas).
+2. Identificá filas y columnas por alineación; mostrá primero una **tabla Markdown**.
+3. Preguntá: "¿Lo guardo como CSV? (sí/no)". Si sí:
+   `printf 'col1,col2,col3\nv1,v2,v3\n' | node {baseDir}/pdf.js save-csv <nombre>`
+   y decile dónde quedó.
 
 ### Extraer datos específicos
-
-Frases:
-- "extraer todas las fechas del documento"
-- "sacar los montos totales"
-- "qué proveedores aparecen"
-- "listar todos los nombres"
-
-Buscar en el texto los patrones indicados y listar con contexto (línea donde aparece).
+"sacá todas las fechas" / "qué proveedores aparecen" / "los montos totales"
+1. Extraé el texto.
+2. Buscá los patrones pedidos y listá con contexto (la línea donde aparecen).
 
 ### Procesar factura / recibo
+"procesá esta factura"
+1. Extraé el texto.
+2. Identificá: número, fecha, emisor, receptor, líneas de detalle (cantidad,
+   descripción, precio unit., total), subtotal, impuestos, total y moneda.
+3. Mostrá una tabla estructurada y ofrecé `save-csv`.
 
-Frase: "procesar esta factura"
+## Casos borde (el script ya los detecta)
 
-Extraer automáticamente:
-- Número de factura / recibo
-- Fecha
-- Emisor y receptor
-- Líneas de detalle (cantidad, descripción, precio unitario, total)
-- Subtotal, impuestos, total
-- Moneda
+- **PDF escaneado / sin texto**: `text` devuelve `ERROR:` avisando que no hay texto
+  extraíble (necesita OCR). Comunicáselo al usuario, no inventes datos.
+- **pdftotext no instalado**: `text` devuelve `ERROR:` con las instrucciones de
+  instalación (poppler-utils). Reenviáselas tal cual.
+- **PDFs largos (>~50 págs)**: procesá por secciones si hace falta.
 
-Presentar como tabla estructurada y ofrecer guardar en CSV.
+## Tono
 
-## Formatos de salida
-
-| Comando | Formato |
-|---|---|
-| Resumen | Texto con bullets |
-| Tabla detectada | Markdown → opción CSV |
-| Datos específicos | Lista numerada con contexto |
-| Factura | Tabla estructurada |
-
-## Notas importantes
-
-- Para PDFs escaneados (imágenes), `pdftotext` no funciona — indicar que se necesita OCR
-- Los PDFs con protección de copia pueden dar texto vacío — mencionarlo al usuario
-- Límite práctico: PDFs de hasta ~50 páginas. Para documentos más largos, procesar por secciones
-- Los archivos CSV se guardan en `{baseDir}/exports/` — crear el directorio si no existe
+- Claro y al grano, en español. Mostrá los datos en tablas legibles.
+- Siempre basate en el texto real que devolvió el script, citando el documento.

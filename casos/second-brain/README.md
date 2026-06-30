@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Intermedio  
-**Modelo:** Groq — Llama 3.1 70B  
+**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -43,7 +43,7 @@ Verificar que `second-brain 🧠` aparece. Si no:
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/second-brain
-cp skills/second-brain/SKILL.md ~/.openclaw/workspace/skills/second-brain/
+cp -r skills/second-brain/. ~/.openclaw/workspace/skills/second-brain/
 ```
 
 ---
@@ -124,9 +124,14 @@ El agente lee todos los archivos modificados hoy y devuelve un resumen organizad
 ## Paso 7 — Ver los archivos generados (3 min)
 
 ```bash
-ls ~/.openclaw/workspace/../../obsidian-vault/   # o la ruta que hayas configurado
-cat ~/.openclaw/workspace/../../obsidian-vault/"Agentes IA y memoria persistente.md"
+# Por defecto las notas viven en el vault self-contained de la skill:
+VAULT=~/.openclaw/workspace/skills/second-brain/data/vault
+ls "$VAULT"
+cat "$VAULT/Agentes IA y memoria persistente.md"
 ```
+
+> Para usar tu **vault real de Obsidian**, exportá `OBSIDIAN_VAULT=/ruta/a/tu/vault`
+> antes de arrancar el gateway (o pedile al agente que use `--vault /ruta`).
 
 Las notas son archivos `.md` estándar — se pueden abrir en Obsidian, VS Code, o cualquier editor.
 
