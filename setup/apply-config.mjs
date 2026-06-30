@@ -96,9 +96,9 @@ if (hasGroq) {
     apiKey: GROQ_API_KEY,
     api: "openai-completions",
     models: [
-      { id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B (Groq)", contextWindow: 131072, maxTokens: 8000 },
+      { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Groq)", contextWindow: 131072, maxTokens: 8000 },
       { id: "llama-3.1-8b-instant",    name: "Llama 3.1 8B Fast (Groq)", contextWindow: 131072, maxTokens: 8000 },
-      { id: "mixtral-8x7b-32768",      name: "Mixtral 8x7B (Groq)", contextWindow: 32768,  maxTokens: 8000 },
+      { id: "openai/gpt-oss-20b",      name: "GPT-OSS 20B (Groq)", contextWindow: 131072, maxTokens: 8000 },
     ],
   };
 }
@@ -120,6 +120,9 @@ if (hasOpenRouter) {
     apiKey: OPENROUTER_API_KEY,
     api: "openai-completions",
     models: [
+      // Primario del taller: mismo Llama 3.3 70B que la narrativa, servido por
+      // OpenRouter (contexto 131k, sin el techo TPM del free tier de Groq).
+      { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B (OpenRouter)", contextWindow: 131072, maxTokens: 8000 },
       { id: "openai/gpt-4o-mini", name: "GPT-4o Mini (OpenRouter)", contextWindow: 128000, maxTokens: 16000 },
     ],
   };
@@ -147,27 +150,43 @@ if (hasOllama) {
   };
 }
 
-// Prioridad: Groq > Azure > OpenRouter > Ollama
-const primaryModel = hasGroq       ? "groq/llama-3.1-70b-versatile"
+// Prioridad: OpenRouter > Azure > Groq > Ollama.
+// OpenRouter es el backend recomendado del taller: contexto completo y sin el
+// techo TPM del free tier de Groq, así que corre las tareas agénticas (escribir
+// archivos, ejecutar código) de forma fiable. Groq queda como opción para quien
+// solo tenga esa key, pero con recorte de contexto (ver groqIsPrimary).
+const primaryModel = hasOpenRouter ? "openrouter/meta-llama/llama-3.3-70b-instruct"
                    : hasAzure      ? "azure/gpt-4o-mini"
-                   : hasOpenRouter ? "openrouter/openai/gpt-4o-mini"
+                   : hasGroq       ? "groq/llama-3.3-70b-versatile"
                                    : "ollama/llama3.2:3b";
 
+// Groq como primario sólo si no hay OpenRouter ni Azure. En ese caso el contexto
+// no entra en el free tier de Groq y se aplica el perfil "minimal" + cap de
+// bootstrap (workaround degradado; las tareas que escriben archivos pueden fallar).
+const groqIsPrimary = !hasOpenRouter && !hasAzure && hasGroq;
+
 const fallbackModels = [
-  ...(hasGroq && hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"] : []),
-  ...(hasGroq && hasAzure      ? ["azure/gpt-4o-mini"]             : []),
-  ...(hasOllama ? ["ollama/llama3.2:3b"]                           : []),
+  ...(hasOpenRouter ? ["openrouter/openai/gpt-4o-mini"]    : []),
+  ...(hasAzure && !hasOpenRouter ? ["azure/gpt-4o-mini"]   : []),
+  ...(hasOllama ? ["ollama/llama3.2:3b"]                   : []),
 ].filter((m) => m !== primaryModel);
 
 const modelAllowlist = {};
-if (hasGroq)       modelAllowlist["groq/llama-3.1-70b-versatile"]  = { alias: "llama70b" };
-if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "llama8b" };
-if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
+if (hasOpenRouter) modelAllowlist["openrouter/meta-llama/llama-3.3-70b-instruct"] = { alias: "llama70b" };
 if (hasOpenRouter) modelAllowlist["openrouter/openai/gpt-4o-mini"]  = { alias: "or-mini" };
+if (hasGroq)       modelAllowlist["groq/llama-3.3-70b-versatile"]  = { alias: "groq70b" };
+if (hasGroq)       modelAllowlist["groq/llama-3.1-8b-instant"]     = { alias: "groq8b" };
+if (hasAzure)      modelAllowlist["azure/gpt-4o-mini"]              = { alias: "azure-mini" };
 if (hasOllama)     modelAllowlist["ollama/llama3.2:3b"]             = { alias: "ollama-local" };
 
 const additions = {
   models: { providers },
+  // ── Recorte de contexto SOLO si Groq es el primario ─────────────────────────
+  // OpenClaw inyecta ~29k tokens/mensaje (system prompt + esquemas de TODAS las
+  // tools). El free tier de Groq rechaza requests > 12k TPM, así que con Groq
+  // primario se usa el perfil "minimal" (~10k). Con OpenRouter/Azure el contexto
+  // entra holgado, así que se dejan las tools COMPLETAS (mejor ejecución de skills).
+  ...(groqIsPrimary ? { tools: { profile: "minimal" } } : {}),
   gateway: {
     // El relay conecta desde http://127.0.0.1:18789 (mismo origen que el gateway).
     // No se necesita "null" — el vault dashboard NO conecta directamente al WS,
@@ -179,6 +198,9 @@ const additions = {
   agents: {
     defaults: {
       workspace: "~/.openclaw/workspace",
+      // Cap de bootstrap (AGENTS.md, SOUL.md, etc.) sólo con Groq primario, para
+      // dejar headroom bajo su techo de 12k. Con OpenRouter/Azure no hace falta.
+      ...(groqIsPrimary ? { bootstrapTotalMaxChars: 1200 } : {}),
       model: {
         primary: primaryModel,
         ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
@@ -199,18 +221,14 @@ const additions = {
     },
     list: [
       {
-        // Agente principal — maneja cerebro, documentos y desarrollo
+        // Un solo agente con las 4 skills. Antes había un agente "finanzas"
+        // separado con el modelo 8B, pero el free tier de Groq para el 8B
+        // (6k TPM) no soporta el contexto del agente — quedaba inutilizable.
+        // El 70B (12k TPM) es el único viable en Groq gratis, y las skills
+        // se cargan on-demand, así que tener las 4 en un agente no infla el prompt.
         id: "main",
         default: true,
-        skills: ["second-brain", "pdf-extractor", "dev-assistant"],
-      },
-      {
-        // Agente especializado en finanzas — modelo más rápido para respuestas cortas
-        id: "finanzas",
-        skills: ["expense-tracker"],
-        model: {
-          primary: hasGroq ? "groq/llama-3.1-8b-instant" : primaryModel,
-        },
+        skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
       },
     ],
   },
@@ -236,7 +254,7 @@ if (hasTelegram) {
 const merged = deepMerge(existing, additions);
 writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 
-const providerName = hasGroq ? "Groq" : hasAzure ? "Azure OpenAI" : hasOpenRouter ? "OpenRouter" : "Ollama (local)";
+const providerName = hasOpenRouter ? "OpenRouter" : hasAzure ? "Azure OpenAI" : hasGroq ? "Groq" : "Ollama (local)";
 console.log(`✓ Config escrito en ${configPath}`);
 console.log(`  Proveedor activo: ${providerName} → ${primaryModel}`);
 if (hasOllama)   console.log("  Ollama: configurado (modo local)");
