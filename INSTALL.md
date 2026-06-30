@@ -287,10 +287,22 @@ Ese script instala Ollama (si falta), descarga `nomic-embed-text`, agrega
 `OLLAMA_BASE_URL`/`OLLAMA_EMBED_MODEL` al `.env`, aplica la config (registra el
 provider `ollama-embed` + el bloque `memorySearch`) y reindexa la memoria.
 
-Verificar:
+Verificar que quedó activa y que la búsqueda **semántica** funciona:
 ```bash
-openclaw memory status   # Provider debe decir "ollama-embed", sin "paused"
+openclaw memory status   # Provider: ollama-embed · sin "paused" · Indexed: N/N
+
+# Prueba real: crear una nota y buscarla por significado (no por palabra exacta)
+echo "El proyecto se llama Agentcito y usa Groq para chatear." \
+  > ~/.openclaw/workspace/memory/prueba.md
+openclaw memory status --index --agent main          # reconstruye el índice
+openclaw memory search "inteligencia artificial rápida"   # debe encontrar la nota
 ```
+
+> ⚠️ **Gotcha importante:** cada vez que agregás o editás un archivo en
+> `~/.openclaw/workspace/memory/`, el índice queda "dirty" y la búsqueda
+> vectorial se pausa hasta reconstruirlo. El comando correcto es
+> `openclaw memory status --index --agent main` — **no** `memory index --force`
+> (este último deja el metadata incompleto en OpenClaw 2026.6.x).
 
 > Para los asistentes del taller esto es **opcional/avanzado**: la instalación
 > base funciona con memoria por palabras clave. Esto suma búsqueda semántica.

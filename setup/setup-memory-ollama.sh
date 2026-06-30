@@ -88,13 +88,17 @@ if command -v systemctl &>/dev/null && systemctl --user &>/dev/null 2>&1; then
   sleep 2
 fi
 
-info "Reindexando la memoria..."
-openclaw memory index --force || warn "El reindex falló — revisá 'openclaw memory status'"
+info "Construyendo el índice de memoria (embeddings)..."
+# IMPORTANTE: 'memory status --index' construye el índice Y escribe el metadata.
+# 'memory index --force' por sí solo deja el metadata incompleto en esta versión
+# y la búsqueda vectorial queda "paused until memory is rebuilt".
+openclaw memory status --index --agent main >/dev/null 2>&1 \
+  || warn "El índice falló — revisá 'openclaw memory status'"
 
 echo ""
 info "=== Memoria semántica activada ==="
 openclaw memory status | grep -E "Provider:|Model:|Vector search:|Indexed:" || true
 echo ""
 echo "  Probá: creá una nota en $WORKSPACE/memory/*.md, luego:"
-echo "    openclaw memory index --force"
+echo "    openclaw memory status --index --agent main   # reconstruye el índice"
 echo "    openclaw memory search \"tu consulta\""

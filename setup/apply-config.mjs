@@ -143,7 +143,7 @@ if (hasOllama) {
   providers["ollama-embed"] = {
     baseUrl: OLLAMA_BASE_URL.replace(/\/$/, ""),
     api: "ollama",
-    models: [{ id: OLLAMA_EMBED_MODEL }],
+    models: [{ id: OLLAMA_EMBED_MODEL, name: OLLAMA_EMBED_MODEL }],
   };
 }
 
