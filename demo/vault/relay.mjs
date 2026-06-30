@@ -45,7 +45,7 @@ const state = {
   connected: false,
   agents: [],
   events: [],
-  stats: { totalMsgs: 0, model: "groq/llama-3.1-70b-versatile" },
+  stats: { totalMsgs: 0, model: "openrouter/openai/gpt-4o-mini" },
 };
 
 function pushEvent(evt) {
@@ -181,6 +181,10 @@ for (const raw of (process.env.VAULT_PUBLIC_ORIGIN || "").split(",")) {
   }
 }
 
+// El dashboard se sirve desde el propio relay para que UNA sola URL (ej. el túnel de
+// Cloudflare) entregue el panel y los datos desde el mismo origen — sin CORS ni #relay.
+const INDEX_PATH = resolve(__dir, "index.html");
+
 const server = createServer((req, res) => {
   const origin = req.headers["origin"] || "";
   if (ALLOWED_ORIGINS.has(origin)) {
@@ -188,11 +192,12 @@ const server = createServer((req, res) => {
     res.setHeader("Vary", "Origin");
   }
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Content-Type", "application/json");
 
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
 
-  if (req.url === "/events" || req.url === "/") {
+  // Datos en vivo (JSON)
+  if (req.url === "/events") {
+    res.setHeader("Content-Type", "application/json");
     res.writeHead(200);
     res.end(JSON.stringify({
       connected: state.connected,
@@ -203,6 +208,22 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // Dashboard (HTML) en / y /index.html
+  if (req.url === "/" || req.url === "/index.html") {
+    try {
+      const html = readFileSync(INDEX_PATH, "utf8");
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.writeHead(200);
+      res.end(html);
+    } catch {
+      res.setHeader("Content-Type", "application/json");
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: "index.html no encontrado junto al relay" }));
+    }
+    return;
+  }
+
+  res.setHeader("Content-Type", "application/json");
   res.writeHead(404);
   res.end(JSON.stringify({ error: "not found" }));
 });

@@ -397,7 +397,18 @@ function sanitizeRelay(raw) {
     return u.origin; // normaliza: descarta path, query, fragment, user:pass
   } catch { return null; }
 }
-const RELAY_URL = sanitizeRelay(getHashParam('relay')) ?? 'http://127.0.0.1:3001';
+// Orden de resolución del relay:
+//   1. #relay=... explícito (sanitizado).
+//   2. Si la página se sirve por http(s) (ej. el propio relay la sirve, o Cloudflare
+//      Tunnel), usar MISMO ORIGEN ('' → fetch relativo /events). Una sola URL pública
+//      sirve el dashboard y los datos, sin CORS ni #relay.
+//   3. file:// (abierto local) → localhost:3001.
+function defaultRelay() {
+  const proto = window.location.protocol;
+  if (proto === 'http:' || proto === 'https:') return ''; // mismo origen, fetch relativo
+  return 'http://127.0.0.1:3001';
+}
+const RELAY_URL = sanitizeRelay(getHashParam('relay')) ?? defaultRelay();
 
 // Escapar HTML para texto que viene del relay (datos no confiables)
 function esc(s) {

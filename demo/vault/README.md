@@ -90,6 +90,31 @@ La simulación se apaga sola cuando el relay conecta y llegan datos reales.
 
 ---
 
+## Producción: Pi + Cloudflare (una sola URL pública)
+
+El relay **también sirve el dashboard** (`/` → `index.html`, `/events` → datos). Así
+una sola URL entrega el panel y los datos desde el mismo origen, sin CORS ni `#relay`.
+
+Para dejarlo accesible desde cualquier celular durante el taller, en la Raspberry Pi:
+
+```bash
+bash setup/pi-setup.sh
+```
+
+Eso instala OpenClaw + los 4 casos, deja el relay como servicio systemd y levanta un
+**Cloudflare Tunnel** que expone el dashboard a una URL pública. Dos modos:
+
+- **Túnel rápido** (default, sin cuenta): URL aleatoria `*.trycloudflare.com` que cambia
+  al reiniciar.
+- **Túnel con dominio** (URL fija): `CF_TUNNEL_TOKEN=eyJ... bash setup/pi-setup.sh`, con
+  el hostname público apuntando a `http://localhost:3001` en Cloudflare Zero Trust.
+
+> Vercel solo no alcanza para esto: el navegador necesita llegar al relay de la Pi, que
+> está detrás de NAT. El túnel es lo que da la puerta pública. (Si igual querés servir el
+> `index.html` desde Vercel, pasale `#relay=<URL-del-túnel>` al abrirlo.)
+
+---
+
 ## Troubleshooting
 
 | Problema | Solución |
