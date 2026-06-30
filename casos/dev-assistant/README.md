@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Avanzado  
-**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
+**Modelo:** OpenRouter — gpt-4o-mini (key compartida del taller)  
 **Plataforma:** Linux / Raspberry Pi / WSL2
 
 ---
@@ -15,10 +15,10 @@ Un asistente de desarrollo que no solo sugiere código — lo ejecuta, verifica 
 
 ## Requisitos previos
 
-- [ ] OpenClaw instalado y gateway corriendo (`node setup/check.js`)
-- [ ] Groq configurado (verificar con `node setup/check.js`)
-- [ ] Skill `dev-assistant` instalada en el workspace
-- [ ] Python 3 instalado (`python3 --version`)
+- [ ] Instalador global ejecutado (`bash setup/install.sh`) → chatbot funcionando
+- [ ] OpenRouter configurado (`OPENROUTER_API_KEY` en `.env`) → gpt-4o-mini
+- [ ] Python 3 instalado (`python3 --version`) — instalalo ANTES del caso
+- [ ] Caso instalado con `bash casos/dev-assistant/install.sh`
 
 ```bash
 # Si no tenés Python
@@ -45,11 +45,11 @@ En el chat:
 /skills
 ```
 
-Verificar que `dev-assistant 💻` aparece. Si no:
+Verificar que `dev-assistant 💻` aparece. Si no, corré el instalador del caso (avisa
+si falta `python3`):
 
 ```bash
-mkdir -p ~/.openclaw/workspace/skills/dev-assistant
-cp -r skills/dev-assistant/. ~/.openclaw/workspace/skills/dev-assistant/
+bash casos/dev-assistant/install.sh    # Windows: .\casos\dev-assistant\install.ps1
 ```
 
 ---

@@ -190,39 +190,11 @@ if (groqIsPrimary) modelAllowlist["groq/llama-3.3-70b-versatile"] = { alias: "gr
 if (!hasOpenRouter && !hasAzure && !hasGroq && hasOllama) modelAllowlist["ollama/llama3.2:3b"] = { alias: "ollama-local" };
 
 // ── Herramientas ──────────────────────────────────────────────────────────────
-// exec HABILITADO sin aprobación: las 4 skills del taller funcionan ejecutando un
-// script determinista (node expense.js / brain.js / pdf.js / runpy.js). Sin exec
-// el agente no puede correr nada y las skills no sirven. security:"full"+ask:"off"
-// es aceptable porque el agente está restringido a un único usuario de Telegram
-// (allowFrom) en su propia máquina; las SKILL.md piden confirmación para acciones
-// destructivas.
-const toolsConfig = {
-  exec: { security: "full", ask: "off" },
-  // El agente OpenClaw trae ~40 herramientas; para "registrá X" tiende a elegir
-  // una vía de guardado genérica (write/nota/goal/propuesta) en vez de ejecutar
-  // el script de la skill. Se deniegan esas vías de escape para empujarlo a usar
-  // exec → el motor de la skill. NO se tocan las tools de infraestructura de exec
-  // (gateway/process/nodes) porque exec las usa como escape host; denegarlas
-  // rompe exec ("bundled disabled").
-  //
-  // `pdf`: OpenClaw trae una tool NATIVA `pdf` que necesita un "PDF model" (visión).
-  // Sin ese modelo configurado devuelve "No PDF model configured." y el agente, ante
-  // "leé este PDF", la elige en vez de correr pdf.js → el caso pdf-extractor se rompe.
-  // Se deniega para forzar la vía exec → pdf.js (pdftotext, determinista, sin modelo).
-  //
-  // `sessions_spawn`/`sessions_yield`/`subagents`: vías para delegar el pedido a un
-  // subagente en vez de ejecutar el script. Se deniegan para que el agente resuelva
-  // el pedido él mismo con exec (regla "PROHIBIDO delegar a un subagente" de AGENTS.md).
-  //
-  // OJO: deepMerge REEMPLAZA arrays (no concatena), así que esta lista es la fuente de
-  // verdad al re-ejecutar el script — toda deny que deba persistir tiene que estar acá.
-  deny: [
-    "write", "file_write", "apply_patch",
-    "skill_workshop", "create_goal", "update_goal", "get_goal",
-    "pdf",
-    "sessions_spawn", "sessions_yield", "subagents",
-  ],
-};
+// El instalador GLOBAL deja un CHATBOT PELADO: exec DESHABILITADO y sin deny especial.
+// Así el baseline no puede correr scripts ni "fingir" que ejecutó algo — el contraste
+// con un agente con herramientas queda limpio. exec + la deny list (que fuerzan el uso
+// de los scripts de las skills) los agrega cada caso en setup/install-case.mjs, no acá.
+const toolsConfig = {};
 // Recorte de contexto SOLO si Groq es el primario: OpenClaw inyecta ~29k tokens
 // (system prompt + esquemas de TODAS las tools) y el free tier de Groq rechaza
 // requests > 12k TPM. Con OpenRouter/Azure el contexto entra holgado.
@@ -255,7 +227,14 @@ const additions = {
         ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
       },
       models: modelAllowlist,
-      skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
+      // skills VACÍO a propósito: el instalador global deja un CHATBOT PELADO (sin
+      // herramientas). Cada caso del taller se agrega después con su propio
+      // instalador (casos/<caso>/install.sh → setup/install-case.mjs), que registra
+      // SU skill en esta lista. Así en la exposición se ve la diferencia entre un
+      // chatbot normal y uno con herramientas. OJO: deepMerge REEMPLAZA arrays, así
+      // que re-ejecutar este script "resetea" el agente a chatbot pelado (borra los
+      // casos instalados) — es el comportamiento buscado.
+      skills: [],
       // Memoria semántica: solo si hay Ollama (embeddings locales). Sin esto, la
       // búsqueda de memoria queda en modo palabras clave (FTS), que es el default.
       ...(hasOllama
@@ -270,14 +249,12 @@ const additions = {
     },
     list: [
       {
-        // Un solo agente con las 4 skills. Antes había un agente "finanzas"
-        // separado con el modelo 8B, pero el free tier de Groq para el 8B
-        // (6k TPM) no soporta el contexto del agente — quedaba inutilizable.
-        // El 70B (12k TPM) es el único viable en Groq gratis, y las skills
-        // se cargan on-demand, así que tener las 4 en un agente no infla el prompt.
+        // Un solo agente "main". Arranca SIN skills (chatbot pelado); cada caso del
+        // taller suma su skill vía casos/<caso>/install.sh. Las skills se cargan
+        // on-demand, así que tener varias instaladas no infla el prompt.
         id: "main",
         default: true,
-        skills: ["expense-tracker", "second-brain", "pdf-extractor", "dev-assistant"],
+        skills: [],
       },
     ],
   },
@@ -313,6 +290,11 @@ if (merged.agents?.defaults) {
     ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
   };
 }
+
+// tools: forzar el valor base (chatbot pelado). deepMerge NO borra claves, así que si
+// un caso dejó tools.exec/tools.deny, hay que sobrescribir para volver al chatbot sin
+// herramientas. Re-ejecutar el instalador global "resetea" el agente a baseline.
+merged.tools = toolsConfig;
 
 writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 

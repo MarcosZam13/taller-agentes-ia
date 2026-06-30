@@ -9,7 +9,7 @@
 #   3. Instala openclaw@latest
 #   4. Verifica y carga el .env
 #   5. Aplica config de proveedores al gateway
-#   6. Instala las 4 skills en el workspace
+#   6. Copia AGENTS.md base (deja un CHATBOT sin skills; los casos se instalan aparte)
 #   7. Instala dependencias del relay
 #   8. Configura el gateway como tarea programada de Windows
 #
@@ -111,8 +111,8 @@ if (-not (Test-Path $envFile)) {
     Copy-Item $envExample $envFile
     warn ".env no encontrado. Se copió .env.example → .env"
     warn "Completar $envFile con tus credenciales:"
-    warn "  GROQ_API_KEY=gsk_...   (obtener en https://console.groq.com)"
-    warn "  TELEGRAM_BOT_TOKEN=... (opcional, con @BotFather)"
+    warn "  OPENROUTER_API_KEY=sk-or-... (recomendado, https://openrouter.ai) → gpt-4o-mini"
+    warn "  TELEGRAM_BOT_TOKEN=...       (opcional, con @BotFather)"
     warn ""
     warn "Después de completar .env, volver a ejecutar este script."
     notepad $envFile  # abrir el archivo para que el usuario lo llene
@@ -141,12 +141,14 @@ $hasAzure      = (-not [string]::IsNullOrEmpty($env:AZURE_OPENAI_API_KEY)) -and
 $hasOpenRouter = -not [string]::IsNullOrEmpty($env:OPENROUTER_API_KEY)
 
 if (-not ($hasGroq -or $hasAzure -or $hasOpenRouter)) {
-  err "Sin proveedor configurado en .env. Se necesita al menos GROQ_API_KEY (gratis en https://console.groq.com)"
+  err "Sin proveedor configurado en .env. Recomendado: OPENROUTER_API_KEY (https://openrouter.ai) → gpt-4o-mini"
 }
 
-if ($hasGroq)       { ok "Proveedor: Groq (recomendado para el taller)" }
-elseif ($hasAzure)  { ok "Proveedor: Azure OpenAI" }
-else                { ok "Proveedor: OpenRouter" }
+# Prioridad: OpenRouter > Azure > Groq (igual que apply-config.mjs). gpt-4o-mini es
+# la ruta validada del taller (tool-calling nativo confiable, que las skills necesitan).
+if ($hasOpenRouter) { ok "Proveedor: OpenRouter (openai/gpt-4o-mini) — recomendado" }
+elseif ($hasAzure)  { ok "Proveedor: Azure OpenAI (gpt-4o-mini)" }
+else                { ok "Proveedor: Groq (llama-3.3-70b-versatile)" }
 
 # ── 5. Configurar e iniciar gateway ──────────────────────────────────────────
 ok "Configurando gateway..."
@@ -181,29 +183,16 @@ for ($i = 0; $i -lt 15; $i++) {
 if ($gatewayOk) { ok "Gateway activo en :18789" }
 else { warn "Gateway tardando en responder — continuar igual" }
 
-# ── 6. Instalar las 4 skills ──────────────────────────────────────────────────
-$workspace = "$env:USERPROFILE\.openclaw\workspace\skills"
-foreach ($skill in @("expense-tracker", "second-brain", "pdf-extractor", "dev-assistant")) {
-  # Se copia el directorio COMPLETO (no solo SKILL.md): varias skills traen un
-  # motor .js determinista (expense.js, brain.js, pdf.js, runpy.js) que el agente
-  # ejecuta. Si solo se copiara SKILL.md, esas skills quedarían rotas.
-  $src = "$REPO_DIR\skills\$skill"
-  $dst = "$workspace\$skill"
-  if (Test-Path "$src\SKILL.md") {
-    New-Item -ItemType Directory -Force -Path $dst | Out-Null
-    Copy-Item "$src\*" $dst -Recurse -Force
-    ok "Skill $skill instalada"
-  } else {
-    warn "Skill $skill no encontrada en skills\$skill\SKILL.md"
-  }
-}
-
-# Copiar AGENTS.md al workspace
+# ── 6. Copiar AGENTS.md base (chatbot sin skills) ─────────────────────────────
+# El instalador global deja un CHATBOT PELADO: NO instala ninguna skill. Cada caso
+# del taller se agrega después con su propio instalador (casos\<caso>\install.ps1),
+# que copia su skill y la registra. Así en la exposición se ve la diferencia entre
+# un chatbot normal y uno con herramientas.
 $agentsWS = "$env:USERPROFILE\.openclaw\workspace"
 if (Test-Path "$REPO_DIR\AGENTS.md") {
   New-Item -ItemType Directory -Force -Path $agentsWS | Out-Null
   Copy-Item "$REPO_DIR\AGENTS.md" "$agentsWS\AGENTS.md" -Force
-  ok "AGENTS.md copiado al workspace"
+  ok "AGENTS.md base copiado al workspace (chatbot sin skills)"
 }
 
 # ── 7. Instalar dependencias del relay ────────────────────────────────────────
@@ -220,11 +209,17 @@ Pop-Location
 
 # ── Resumen ───────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== Instalación completa ===" -ForegroundColor Green
+Write-Host "=== Instalación completa — tenés un CHATBOT funcional (sin herramientas) ===" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Probá el chatbot: abrí Telegram o http://127.0.0.1:18789 y conversá" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Para darle herramientas, instalá uno o más casos:" -ForegroundColor Cyan
+Write-Host "    .\casos\finanzas\install.ps1        # registrar gastos"          -ForegroundColor Cyan
+Write-Host "    .\casos\second-brain\install.ps1    # notas / segundo cerebro"   -ForegroundColor Cyan
+Write-Host "    .\casos\pdf-extractor\install.ps1   # leer PDFs (necesita poppler)" -ForegroundColor Cyan
+Write-Host "    .\casos\dev-assistant\install.ps1   # ejecutar Python (necesita python3)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Verificar entorno:    node setup\check.js"             -ForegroundColor Cyan
-Write-Host "  Abrir vault:          bash setup\open-vault.sh"        -ForegroundColor Cyan
-Write-Host "     (o desde cmd):     node demo\vault\relay.mjs"       -ForegroundColor Cyan
 Write-Host "  Dashboard OpenClaw:   bash setup\open-dashboard.sh"    -ForegroundColor Cyan
 Write-Host "  Logs del gateway:     openclaw gateway status"         -ForegroundColor Cyan
 Write-Host ""

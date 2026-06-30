@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Principiante  
-**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
+**Modelo:** OpenRouter — gpt-4o-mini (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -15,9 +15,9 @@ Un asistente que entiende lenguaje natural en español y te permite registrar ga
 
 ## Requisitos previos
 
-- [ ] OpenClaw instalado y gateway corriendo (`node setup/check.js`)
-- [ ] Azure OpenAI configurado con `gpt-4o-mini`
-- [ ] Skill `expense-tracker` instalada en el workspace
+- [ ] Instalador global ejecutado (`bash setup/install.sh`) → chatbot funcionando
+- [ ] OpenRouter configurado (`OPENROUTER_API_KEY` en `.env`) → gpt-4o-mini
+- [ ] Caso instalado con `bash casos/finanzas/install.sh` (copia la skill y la registra)
 
 ---
 
@@ -50,16 +50,14 @@ En el dashboard (o en el chat), escribir:
 /skills
 ```
 
-Verificar que `expense-tracker 💰` aparece en la lista. Si no:
+Verificar que `expense-tracker 💰` aparece en la lista. Si no aparece, corré el
+instalador del caso (copia la skill, habilita `exec` y registra el routing):
 
 ```bash
-# Copiar manualmente la skill
-mkdir -p ~/.openclaw/workspace/skills/expense-tracker
-cp -r skills/expense-tracker/. ~/.openclaw/workspace/skills/expense-tracker/
-
-# Recargar skills (hot-reload, no reinicio)
-openclaw config set agents.defaults.skills '["expense-tracker"]'
+bash casos/finanzas/install.sh    # Windows: .\casos\finanzas\install.ps1
 ```
+
+El gateway recarga solo (hot-reload, sin reinicio).
 
 ---
 
@@ -193,7 +191,8 @@ Verás todos los gastos guardados en formato JSON. Este archivo es portátil —
 
 | Problema | Solución |
 |---|---|
-| El agente no reconoce la skill | `openclaw config set agents.defaults.skills '["expense-tracker"]'` |
-| Error de modelo | Verificar `AZURE_OPENAI_ENDPOINT` en `.env` |
+| El agente no reconoce la skill | Re-correr `bash casos/finanzas/install.sh` |
+| El agente responde pero no ejecuta (solo conversa) | Verificar que el caso esté instalado (no solo el chatbot base): `bash casos/finanzas/install.sh` |
+| Error de modelo | Verificar `OPENROUTER_API_KEY` en `.env` |
 | Gateway no inicia | `journalctl --user -u openclaw-gateway.service -n 50` |
 | `gastos.json` no se crea | Crear directorio manualmente: `mkdir -p ~/.openclaw/workspace/skills/expense-tracker/data` |

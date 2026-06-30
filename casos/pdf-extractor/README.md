@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Intermedio  
-**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
+**Modelo:** OpenRouter — gpt-4o-mini (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -15,10 +15,10 @@ Un agente que extrae texto de archivos PDF, identifica datos relevantes (tablas,
 
 ## Requisitos previos
 
-- [ ] OpenClaw instalado y gateway corriendo (`node setup/check.js`)
-- [ ] Groq configurado (verificar con `node setup/check.js`)
-- [ ] Skill `pdf-extractor` instalada en el workspace
-- [ ] `pdftotext` instalado (parte de `poppler-utils`)
+- [ ] Instalador global ejecutado (`bash setup/install.sh`) → chatbot funcionando
+- [ ] OpenRouter configurado (`OPENROUTER_API_KEY` en `.env`) → gpt-4o-mini
+- [ ] `pdftotext` instalado (parte de `poppler-utils`) — instalalo ANTES del caso
+- [ ] Caso instalado con `bash casos/pdf-extractor/install.sh`
 
 ```bash
 # Linux / Raspberry Pi
@@ -50,11 +50,11 @@ En el chat:
 /skills
 ```
 
-Verificar que `pdf-extractor 📄` aparece. Si no:
+Verificar que `pdf-extractor 📄` aparece. Si no, corré el instalador del caso (avisa
+si falta `pdftotext`):
 
 ```bash
-mkdir -p ~/.openclaw/workspace/skills/pdf-extractor
-cp -r skills/pdf-extractor/. ~/.openclaw/workspace/skills/pdf-extractor/
+bash casos/pdf-extractor/install.sh    # Windows: .\casos\pdf-extractor\install.ps1
 ```
 
 ---

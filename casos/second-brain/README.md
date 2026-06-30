@@ -2,7 +2,7 @@
 
 **Tiempo estimado:** 25–35 minutos  
 **Dificultad:** Intermedio  
-**Modelo:** OpenRouter — Llama 3.3 70B (key compartida del taller)  
+**Modelo:** OpenRouter — gpt-4o-mini (key compartida del taller)  
 **Plataforma:** Cualquier (web UI, Telegram, CLI)
 
 ---
@@ -15,9 +15,9 @@ Un agente que lee, crea y conecta notas en formato Obsidian desde el chat. Podé
 
 ## Requisitos previos
 
-- [ ] OpenClaw instalado y gateway corriendo (`node setup/check.js`)
-- [ ] Groq configurado (verificar con `node setup/check.js`)
-- [ ] Skill `second-brain` instalada en el workspace
+- [ ] Instalador global ejecutado (`bash setup/install.sh`) → chatbot funcionando
+- [ ] OpenRouter configurado (`OPENROUTER_API_KEY` en `.env`) → gpt-4o-mini
+- [ ] Caso instalado con `bash casos/second-brain/install.sh`
 - [ ] (Opcional) Obsidian instalado para visualizar las notas
 
 ---
@@ -39,11 +39,10 @@ En el chat:
 /skills
 ```
 
-Verificar que `second-brain 🧠` aparece. Si no:
+Verificar que `second-brain 🧠` aparece. Si no, corré el instalador del caso:
 
 ```bash
-mkdir -p ~/.openclaw/workspace/skills/second-brain
-cp -r skills/second-brain/. ~/.openclaw/workspace/skills/second-brain/
+bash casos/second-brain/install.sh    # Windows: .\casos\second-brain\install.ps1
 ```
 
 ---

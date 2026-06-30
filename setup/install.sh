@@ -74,18 +74,21 @@ HAS_OPENROUTER=false
 
 if [[ "$HAS_GROQ" == false && "$HAS_AZURE" == false && "$HAS_OPENROUTER" == false ]]; then
   error "Se requiere al menos un proveedor en .env:
-    Opción A (recomendada) — Groq: GROQ_API_KEY (https://console.groq.com, gratis)
-    Opción B — OpenRouter:        OPENROUTER_API_KEY (https://openrouter.ai)
-    Opción C — Azure OpenAI:      AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY"
+    Opción A (recomendada) — OpenRouter: OPENROUTER_API_KEY (https://openrouter.ai) → gpt-4o-mini
+    Opción B — Azure OpenAI:             AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY (gpt-4o-mini)
+    Opción C — Groq:                     GROQ_API_KEY (https://console.groq.com, gratis) → llama-3.3-70b"
 fi
 
-# Prioridad: Groq > Azure > OpenRouter (igual que apply-config.mjs)
-if [[ "$HAS_GROQ" == true ]]; then
-  info "Proveedor activo: Groq (llama-3.1-70b-versatile)"
+# Prioridad: OpenRouter > Azure > Groq (igual que apply-config.mjs). OpenRouter con
+# gpt-4o-mini es la ruta validada del taller: hace tool-calling nativo confiable, que
+# es lo que las skills necesitan. Groq queda como último recurso (su 70B sirve, pero
+# el modelo recomendado del taller es gpt-4o-mini).
+if [[ "$HAS_OPENROUTER" == true ]]; then
+  info "Proveedor activo: OpenRouter (openai/gpt-4o-mini) — recomendado"
 elif [[ "$HAS_AZURE" == true ]]; then
-  info "Proveedor activo: Azure OpenAI ($AZURE_OPENAI_ENDPOINT)"
+  info "Proveedor activo: Azure OpenAI ($AZURE_OPENAI_ENDPOINT — gpt-4o-mini)"
 else
-  info "Proveedor activo: OpenRouter"
+  info "Proveedor activo: Groq (llama-3.3-70b-versatile)"
 fi
 
 # 5. Instalar como systemd user service
@@ -118,24 +121,14 @@ info "Aplicando configuración de modelos y skills..."
 node "$REPO_DIR/setup/apply-config.mjs" && info "Configuración aplicada" || \
   warn "apply-config.mjs falló — ejecutar manualmente: node setup/apply-config.mjs"
 
-# 7. Instalar las 4 skills en el workspace
-# Se copia el directorio COMPLETO de cada skill (no solo SKILL.md): varias skills
-# traen un motor .js determinista (expense.js, brain.js, pdf.js, runpy.js) que el
-# agente ejecuta. Si solo se copiara SKILL.md, esas skills quedarían rotas.
-for SKILL in expense-tracker second-brain pdf-extractor dev-assistant; do
-  SKILL_DEST="$HOME/.openclaw/workspace/skills/$SKILL"
-  if [[ -f "$REPO_DIR/skills/$SKILL/SKILL.md" ]]; then
-    mkdir -p "$SKILL_DEST"
-    cp -r "$REPO_DIR/skills/$SKILL/." "$SKILL_DEST/"
-    info "Skill $SKILL instalada en workspace"
-  else
-    warn "Skill $SKILL no encontrada en skills/$SKILL/SKILL.md — omitida"
-  fi
-done
-
-# Copiar AGENTS.md al workspace
+# 7. Copiar AGENTS.md base al workspace
+# El instalador global deja un CHATBOT PELADO: NO instala ninguna skill. Cada caso
+# del taller se agrega después con su propio instalador (casos/<caso>/install.sh),
+# que copia su skill y la registra. Así en la exposición se ve la diferencia entre
+# un chatbot normal y uno con herramientas.
+mkdir -p "$HOME/.openclaw/workspace"
 cp "$REPO_DIR/AGENTS.md" "$HOME/.openclaw/workspace/" 2>/dev/null && \
-  info "AGENTS.md copiado al workspace" || true
+  info "AGENTS.md base copiado al workspace (chatbot sin skills)" || true
 
 # 8. Instalar dependencias del vault relay
 if command -v npm &>/dev/null && [[ -f "$REPO_DIR/demo/vault/package.json" ]]; then
@@ -146,8 +139,15 @@ if command -v npm &>/dev/null && [[ -f "$REPO_DIR/demo/vault/package.json" ]]; t
 fi
 
 echo ""
-info "=== Instalación completa ==="
+info "=== Instalación completa — tenés un CHATBOT funcional (sin herramientas) ==="
+echo "  Probá el chatbot:  abrí Telegram o http://127.0.0.1:18789 y conversá"
+echo ""
+echo "  Para darle herramientas, instalá uno o más casos:"
+echo "    bash casos/finanzas/install.sh        # registrar gastos"
+echo "    bash casos/second-brain/install.sh    # notas / segundo cerebro"
+echo "    bash casos/pdf-extractor/install.sh   # leer PDFs (necesita poppler)"
+echo "    bash casos/dev-assistant/install.sh   # ejecutar Python (necesita python3)"
+echo ""
 echo "  Vault dashboard: bash setup/open-vault.sh"
-echo "  Dashboard:       bash setup/open-dashboard.sh"
 echo "  Verificar:       node setup/check.js"
 echo "  Logs:            journalctl --user -u openclaw-gateway.service -f"
