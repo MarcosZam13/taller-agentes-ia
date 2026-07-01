@@ -361,6 +361,37 @@ const ROOMS = [
     char:'https://raw.githubusercontent.com/Innovio/Agent-Vault-9000/master/models/coder.png', fallback:'💻' },
 ];
 
+// En la Pi los 4 casos viven en UN solo agente ("main"), así que el nombre del
+// agente no alcanza para saber qué cuarto encender. Enrutamos por señales, en
+// orden de confianza: (1) el comando/script de la skill que ejecutó el agente
+// (expense.js/brain.js/pdf.js/runpy.js), (2) el nombre del agente si trae el caso,
+// (3) palabras clave del texto del mensaje. Si nada matchea, no forzamos FINANZAS.
+const ENGINE_ROOM = { 'expense.js':'finanzas', 'brain.js':'cerebro', 'pdf.js':'documentos', 'runpy.js':'desarrollo' };
+const ROOM_KW = {
+  finanzas:   [/\bgast/i, /\bcompr/i, /\bpag(u|ó|o|ar|ué)/i, /presupuesto/i, /colones/i, /₡/, /\bplata\b/i, /\bdinero\b/i,
+               /cu[aá]nto (llevo|gast|va|queda|me)/i, /\bbalance\b/i, /\bsaldo\b/i],
+  cerebro:    [/\bnotas?\b/i, /\banot/i, /\bidea/i, /guard[aá]/i, /obsidian/i, /apunt/i, /segundo cerebro/i,
+               /qu[eé] tengo sobre/i, /\bconect/i, /\bvincul/i],
+  documentos: [/\bpdf\b/i, /\.pdf/i, /documento/i, /factura/i, /\bcsv\b/i, /extrae?r/i, /contrato/i],
+  desarrollo: [/\bcódigo\b/i, /\bcode\b/i, /ejecut/i, /\bpython\b/i, /\bscript\b/i, /\btests?\b/i, /traceback/i, /\berror\b/i, /refactor/i,
+               /instal(ar|á|o)\b/i, /\bpip\b/i, /dependencia/i, /\bfunci[oó]n\b/i],
+};
+function pickRoom({ agentId = '', skill = '', text = '' } = {}) {
+  const hay = `${agentId} ${skill} ${text}`.toLowerCase();
+  // (1) script/engine de la skill en el texto (lo más confiable)
+  for (const [engine, roomId] of Object.entries(ENGINE_ROOM)) {
+    if (hay.includes(engine)) return ROOMS.find(r => r.id === roomId);
+  }
+  // (2) agentId o skill que nombre el caso
+  const byAgent = ROOMS.find(r => hay.includes(r.id) || (skill && skill.includes(r.skill)));
+  if (byAgent) return byAgent;
+  // (3) palabras clave del contenido
+  for (const r of ROOMS) {
+    if (ROOM_KW[r.id].some(rx => rx.test(text))) return r;
+  }
+  return null; // sin señal clara: no encendemos un cuarto al azar
+}
+
 const S = {
   connected: false, totalMsgs: 0, start: Date.now(), ws: null,
   hasRelayData: false,
@@ -551,9 +582,9 @@ function tryWS() {
 function onWsMsg(raw) {
   try {
     const d = JSON.parse(raw);
-    const aId = (d.agent || d.agentId || '').toLowerCase();
-    const room = ROOMS.find(r => aId.includes(r.id) || (d.skill||'').includes(r.skill)) || ROOMS[0];
     const text = d.content || d.text || d.message || '';
+    const room = pickRoom({ agentId: d.agent || d.agentId, skill: d.skill, text });
+    if (!room) return;
     const dir  = d.from === 'user' || d.role === 'user' ? 'user' : 'agent';
     activate(room.id, text, dir);
   } catch(_) {}
@@ -561,10 +592,6 @@ function onWsMsg(raw) {
 
 // ── Relay polling — datos reales de OpenClaw ──────────────────────────────────
 let _lastEvTs = 0;
-function mapAgentRoom(agentId) {
-  const id = (agentId || '').toLowerCase();
-  return ROOMS.find(r => id.includes(r.id) || id.includes(r.skill)) || ROOMS[0];
-}
 
 async function pollRelay() {
   try {
@@ -604,7 +631,8 @@ async function pollRelay() {
       _lastEvTs = newEvts[0].ts; // ts más alto = evento más reciente
       S.hasRelayData = true;
       newEvts.reverse().forEach(evt => { // procesar del más viejo al más nuevo
-        const room = mapAgentRoom(evt.agentId);
+        const room = pickRoom({ agentId: evt.agentId, skill: evt.skill, text: evt.text });
+        if (!room) return;
         if (evt.type === 'message' && evt.text) {
           activate(room.id, evt.text, evt.dir || 'agent');
         } else if (evt.type === 'thinking') {
