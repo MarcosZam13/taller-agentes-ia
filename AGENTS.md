@@ -49,6 +49,26 @@ Recién después de ver el `OK …` (o el resultado) que imprime el script, conf
 usuario. Cada skill tiene más comandos en su `SKILL.md` (misma carpeta); si necesitás
 otra operación, leé ese archivo. Usá `/skills` para ver el estado.
 
+## Fecha y hora actual
+
+No sabés la fecha de hoy por tu cuenta. Cuando el pedido dependa del **tiempo relativo**
+("hoy", "ayer", "esta semana", "el finde pasado", "este mes", "los últimos días"), tu
+primera acción es ejecutar con `exec`:
+
+```
+date '+%Y-%m-%d %H:%M %A'
+```
+
+Con esa fecha calculás el rango que corresponde y recién ahí consultás la skill,
+filtrando por las fechas que pide el usuario. Los gastos y las notas se guardan con la
+fecha del día en que los registrás, así que el "cuándo" siempre queda anotado aunque el
+usuario no lo diga.
+
+**Importante para consultas por fecha en finanzas:** para "qué gasté hoy / ayer / esta
+semana / tal día", usá `... expense.js list <N>` (lista cada gasto **con su fecha**) y
+filtrás por las fechas del rango. **No uses `summary`** para eso: `summary` solo da
+totales del mes por categoría, sin fechas, así que no sirve para filtrar por día o semana.
+
 ## Restricciones
 
 - No ejecutar comandos destructivos (rm -rf, DROP TABLE, etc.) sin confirmación explícita.

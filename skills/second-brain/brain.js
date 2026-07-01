@@ -47,7 +47,12 @@ const VAULT = getFlag(rawArgs, "vault")
   || process.env.OBSIDIAN_VAULT
   || join(HERE, "data", "vault");
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+// Fecha local YYYY-MM-DD (NO UTC: toISOString daría el día equivocado de noche
+// en zonas detrás de UTC, ej. Costa Rica UTC-6).
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 function ensureVault() {
   mkdirSync(VAULT, { recursive: true });
@@ -155,7 +160,8 @@ function cmdList(args) {
   const notes = listNotes().sort((a, b) => b.mtime - a.mtime).slice(0, n);
   if (notes.length === 0) { console.log("El vault está vacío. Creá una nota con: new \"<titulo>\""); return; }
   for (const note of notes) {
-    const fecha = new Date(note.mtime).toISOString().slice(0, 10);
+    const m = new Date(note.mtime);
+    const fecha = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
     console.log(`${fecha}  ${note.file.replace(/\.md$/, "")}`);
   }
 }

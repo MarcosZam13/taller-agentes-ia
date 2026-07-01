@@ -45,7 +45,12 @@ function save(db) {
 
 // ₡ 1.234.567 con separadores de miles
 const fmt = (n) => "₡" + Math.round(n).toLocaleString("es-CR");
-const hoy = () => new Date().toISOString().slice(0, 10);
+// Fecha local YYYY-MM-DD (NO UTC: toISOString daría el día equivocado de noche
+// en zonas detrás de UTC, ej. Costa Rica UTC-6).
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const mesDe = (fecha) => fecha.slice(0, 7);
 
 function parseMonto(s) {
