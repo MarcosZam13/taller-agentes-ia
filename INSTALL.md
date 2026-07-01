@@ -389,6 +389,9 @@ La Pi puede correr el gateway, el relay y Cloudflare Tunnel las 24 horas, elimin
 >
 > Lo de abajo es el **setup manual / de referencia** (incluye la variante con el
 > vault servido desde Vercel), por si querés armar cada pieza a mano.
+>
+> 📄 **Guía paso a paso con dominio propio** (ej. `vault.gymbase.fit`, URL fija +
+> login opcional): ver [`setup/GUIA-PI-CLOUDFLARE.md`](setup/GUIA-PI-CLOUDFLARE.md).
 
 ### Arquitectura (dos variantes)
 
