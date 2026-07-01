@@ -4,10 +4,10 @@
 
 Antes de empezar necesitás tener:
 
-- [ ] **API key de Groq** — gratis en [console.groq.com](https://console.groq.com) → API Keys (2 min)
+- [ ] **API key de OpenRouter** — en [openrouter.ai](https://openrouter.ai) → Keys → gpt-4o-mini (el modelo validado del taller)
 - [ ] **Bot de Telegram** — crear con [@BotFather](https://t.me/BotFather) → `/newbot` (opcional)
 - [ ] **Tu ID de Telegram** — mandar cualquier mensaje a [@userinfobot](https://t.me/userinfobot) (opcional)
-- [ ] **OpenRouter key** (opcional, fallback) — [openrouter.ai](https://openrouter.ai)
+- [ ] **Groq key** (opcional, solo chatbot) — [console.groq.com](https://console.groq.com); su Llama rompe las skills, no sirve para los casos
 
 ---
 
@@ -49,17 +49,17 @@ source ~/.bashrc
 git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
-nano .env   # completar GROQ_API_KEY y Telegram (ver abajo)
-bash setup/install.sh
+nano .env   # completar OPENROUTER_API_KEY y Telegram (ver abajo)
+bash setup/install.sh        # deja el chatbot base (sin herramientas)
 ```
 
 ### 4. Completar el .env
 
 ```env
-GROQ_API_KEY=gsk_...          # de groq.com
-TELEGRAM_BOT_TOKEN=1234:AAA...  # de @BotFather
+OPENROUTER_API_KEY=sk-or-v1-...     # de openrouter.ai → gpt-4o-mini
+TELEGRAM_BOT_TOKEN=1234:AAA...      # de @BotFather
 TELEGRAM_ALLOWED_USER_ID=123456789  # de @userinfobot
-OPENROUTER_API_KEY=sk-or-v1-...  # opcional, fallback
+GROQ_API_KEY=gsk_...                # opcional, solo para el chatbot pelado
 ```
 
 ### 5. Verificar y abrir
@@ -67,6 +67,18 @@ OPENROUTER_API_KEY=sk-or-v1-...  # opcional, fallback
 ```bash
 node setup/check.js          # debe mostrar todo verde
 bash setup/open-dashboard.sh # abre el dashboard con auth correcto
+```
+
+### 6. Activar un caso (darle una herramienta)
+
+El paso anterior deja un **chatbot** que solo conversa. Para que el agente ejecute
+acciones, instalá **uno** de los casos:
+
+```bash
+bash casos/finanzas/install.sh        # registrar gastos
+bash casos/second-brain/install.sh    # notas / segundo cerebro
+bash casos/pdf-extractor/install.sh   # leer PDFs (necesita poppler-utils)
+bash casos/dev-assistant/install.sh   # ejecutar Python (necesita python3)
 ```
 
 ### Comandos útiles en Linux
@@ -123,8 +135,11 @@ $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 Copy-Item .env.example .env
-notepad .env   # completar credenciales
-bash setup/install.sh   # requiere Git Bash o WSL
+notepad .env   # completar credenciales (OPENROUTER_API_KEY + Telegram)
+bash setup/install.sh   # requiere Git Bash o WSL — deja el chatbot base
+
+# Activar un caso (PowerShell nativo o Git Bash):
+.\casos\finanzas\install.ps1        # o second-brain / pdf-extractor / dev-assistant
 ```
 
 > **Si no tenés Git Bash:** instalar [Git for Windows](https://gitforwindows.org) que incluye Git Bash.
@@ -230,9 +245,14 @@ openclaw --version
 git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
-nano .env   # completar credenciales
+nano .env   # completar credenciales (OPENROUTER_API_KEY + Telegram)
 bash setup/install.sh
 ```
+
+> 💡 **Pi del facilitador:** si esta Pi es la que va a manejar la demo y el
+> dashboard, en vez de instalar los casos a mano corré `bash setup/pi-setup.sh`
+> — instala los 4 casos + relay + Cloudflare Tunnel de una (ver más abajo).
+> Si es una Pi de participante, activá **un** caso: `bash casos/<caso>/install.sh`.
 
 ### 6. Configurar inicio automático con systemd
 
@@ -275,8 +295,9 @@ Y ejecutar `node setup/apply-config.mjs` — el script lo detecta automáticamen
 ### 8. (Opcional) Memoria semántica con embeddings locales
 
 La búsqueda de memoria de OpenClaw usa **embeddings** y por defecto apunta al
-proveedor `openai` (API key de pago). Groq **no** hace embeddings, así que sin
-configurar nada la memoria queda en modo palabras clave (FTS). Para tener
+proveedor `openai` (API key de pago). El proveedor del chat (OpenRouter/Groq) **no**
+hace embeddings, así que sin configurar nada la memoria queda en modo palabras clave
+(FTS). Para tener
 búsqueda **vectorial** local y gratis con Ollama, hay un script que hace todo:
 
 ```bash
@@ -292,7 +313,7 @@ Verificar que quedó activa y que la búsqueda **semántica** funciona:
 openclaw memory status   # Provider: ollama-embed · sin "paused" · Indexed: N/N
 
 # Prueba real: crear una nota y buscarla por significado (no por palabra exacta)
-echo "El proyecto se llama Agentcito y usa Groq para chatear." \
+echo "El proyecto se llama Agentcito y usa OpenRouter para chatear." \
   > ~/.openclaw/workspace/memory/prueba.md
 openclaw memory status --index --agent main          # reconstruye el índice
 openclaw memory search "inteligencia artificial rápida"   # debe encontrar la nota
@@ -358,24 +379,37 @@ cloudflared tunnel --url http://localhost:18789
 
 ## Raspberry Pi como servidor permanente del taller
 
-La Pi puede correr el gateway, el relay y Cloudflare Tunnel las 24 horas, eliminando la necesidad de preparar una laptop antes de cada sesión. El vault se sirve desde Vercel y se conecta al relay de la Pi vía Cloudflare.
+La Pi puede correr el gateway, el relay y Cloudflare Tunnel las 24 horas, eliminando la necesidad de preparar una laptop antes de cada sesión.
 
-### Arquitectura
+> ⚡ **Camino recomendado (un solo comando):** `bash setup/pi-setup.sh` hace todo
+> lo de esta sección automáticamente — instala el chatbot base, los 4 casos, deja
+> el relay como servicio systemd **sirviendo el dashboard** y levanta un Cloudflare
+> Tunnel. Con esto el dashboard y los datos salen de **una sola URL pública**, sin
+> Vercel ni CORS. Para URL fija (dominio): `CF_TUNNEL_TOKEN=eyJ... bash setup/pi-setup.sh`.
+>
+> Lo de abajo es el **setup manual / de referencia** (incluye la variante con el
+> vault servido desde Vercel), por si querés armar cada pieza a mano.
+
+### Arquitectura (dos variantes)
 
 ```
+Variante A — recomendada (pi-setup.sh): una sola URL
 Pi (siempre encendida)
   openclaw-gateway  :18789  (systemd)
-  vault-relay       :3001   (systemd)
+  relay+dashboard   :3001   (systemd, sirve index.html + /events)
   cloudflared               (systemd)
         ↓
-  https://vault.TU_DOMINIO.com  (Cloudflare Tunnel)
+  https://algo.trycloudflare.com  (o tu dominio)  ← QR en el taller
+        ↓
+  📱 Participantes abren esa URL y ven el vault directo
+
+Variante B — manual con Vercel (referencia)
+  ...cloudflared → https://vault.TU_DOMINIO.com
         ↓
   https://taller-vault.vercel.app/#relay=https://vault.TU_DOMINIO.com
-        ↓  (QR en el taller)
-  📱 Todos los participantes ven el vault en su celular
 ```
 
-### Setup inicial en la Pi (una sola vez)
+### Setup inicial en la Pi (una sola vez — manual)
 
 ```bash
 # 1. Seguir los pasos de Linux de arriba hasta que check.js esté verde

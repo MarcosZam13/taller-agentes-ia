@@ -1,7 +1,11 @@
 # Taller de Agentes IA con OpenClaw
 
 Repositorio del taller dictado en El Salvador, julio 2026.
-Construimos 4 agentes reales usando [OpenClaw](https://docs.openclaw.ai) y Groq (Llama 3.1 70B).
+Construimos 4 agentes reales usando [OpenClaw](https://docs.openclaw.ai) y OpenRouter (gpt-4o-mini).
+
+> **Flujo en dos pasos:** primero se instala el **chatbot pelado** (global) y después
+> se le agrega **un caso** con su propio instalador — así se ve en vivo la diferencia
+> entre un chatbot que solo conversa y un agente que ejecuta herramientas.
 
 ## Plataformas probadas
 
@@ -24,7 +28,7 @@ Construimos 4 agentes reales usando [OpenClaw](https://docs.openclaw.ai) y Groq 
 ### Prerequisitos
 
 - **Node.js 22+** — instalar con [fnm](https://github.com/Schniz/fnm): `curl -fsSL https://fnm.vercel.app/install | bash`
-- **Groq API key** — gratis en [console.groq.com](https://console.groq.com) → API Keys (2 min)
+- **OpenRouter API key** — en [openrouter.ai](https://openrouter.ai) → Keys (para el taller se usa la key compartida del facilitador)
 - **Bot de Telegram** (opcional) — crear con [@BotFather](https://t.me/BotFather)
 
 ### Instalación
@@ -36,15 +40,18 @@ cd taller-agentes-ia
 
 # 2. Configurar credenciales
 cp .env.example .env
-nano .env   # completar al menos GROQ_API_KEY
+nano .env   # completar al menos OPENROUTER_API_KEY
 
-# 3. Instalar todo
+# 3. Instalar el chatbot base (global)
 bash setup/install.sh
 
 # 4. Verificar
 node setup/check.js
 
-# 5. Abrir el vault dashboard (demo visual)
+# 5. Activar UN caso (darle una herramienta al agente)
+bash casos/finanzas/install.sh        # o second-brain / pdf-extractor / dev-assistant
+
+# 6. Abrir el vault dashboard (demo visual)
 bash setup/open-vault.sh
 ```
 
@@ -166,7 +173,9 @@ taller-agentes-ia/
 ├── config/
 │   └── openclaw.json       # Config de OpenClaw (plantilla con comentarios)
 ├── setup/
-│   ├── install.sh          # Instalación completa en Linux
+│   ├── install.sh          # Instalación global (chatbot base, sin skills)
+│   ├── install-case.mjs    # Motor compartido de los instaladores por caso
+│   ├── pi-setup.sh         # Todo-en-uno para la Pi del facilitador (4 casos + dashboard + Cloudflare)
 │   ├── check.js            # Verificación del entorno
 │   ├── apply-config.mjs    # Aplica config de proveedores al gateway
 │   ├── setup-memory-ollama.sh # (Opcional) Memoria semántica con embeddings Ollama
@@ -177,11 +186,11 @@ taller-agentes-ia/
 │   ├── second-brain/       # Caso 2 — Second Brain
 │   ├── pdf-extractor/      # Caso 3 — PDF Extractor
 │   └── dev-assistant/      # Caso 4 — Dev Assistant
-├── casos/
-│   ├── finanzas/           # Guía paso a paso Caso 1
-│   ├── second-brain/       # Guía paso a paso Caso 2
-│   ├── pdf-extractor/      # Guía paso a paso Caso 3
-│   └── dev-assistant/      # Guía paso a paso Caso 4
+├── casos/                  # Cada caso: guía (README) + instalador (install.sh/.ps1)
+│   ├── finanzas/           # Caso 1 — install.sh copia y registra expense-tracker
+│   ├── second-brain/       # Caso 2 — install.sh copia y registra second-brain
+│   ├── pdf-extractor/      # Caso 3 — install.sh (necesita poppler)
+│   └── dev-assistant/      # Caso 4 — install.sh (necesita python3)
 └── demo/
     └── vault/              # Panel visual del taller
         ├── index.html      # Dashboard (abrir en navegador)
@@ -199,7 +208,9 @@ taller-agentes-ia/
 | Gateway no inicia | `journalctl --user -u openclaw-gateway.service -n 30` |
 | Vault muestra OFFLINE | `bash setup/open-vault.sh` |
 | Bot no responde en Telegram | `node setup/check.js` |
-| Groq da error 429 (rate limit) | Esperar 60s — el tier gratuito tiene límites por minuto |
+| El agente responde solo texto (no ejecuta) | Activá el caso: `bash casos/<caso>/install.sh` |
+| Responde JSON crudo en el chat | El modelo no es gpt-4o-mini — usar OpenRouter y `node setup/apply-config.mjs` |
+| Error 429 (rate limit) | Esperar 60s y reintentar |
 | Dashboard pide token | Usar `bash setup/open-dashboard.sh` en lugar de abrir directo |
 
 Para más detalle: [`INSTALL.md`](INSTALL.md) y [`TALLER.md`](TALLER.md).
@@ -210,5 +221,5 @@ Para más detalle: [`INSTALL.md`](INSTALL.md) y [`TALLER.md`](TALLER.md).
 
 - [Documentación OpenClaw](https://docs.openclaw.ai)
 - [ClawHub — Skills y plugins](https://clawhub.ai)
-- [Groq Console — API keys](https://console.groq.com)
+- [OpenRouter — API keys](https://openrouter.ai)
 - [Guía del facilitador](TALLER.md)

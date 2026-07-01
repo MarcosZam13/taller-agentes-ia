@@ -8,7 +8,7 @@ Guía completa para replicar y facilitar el taller. Incluye agenda, preparación
 
 **Duración:** 3–4 horas  
 **Audiencia:** Desarrolladores con experiencia básica-intermedia  
-**Herramienta central:** [OpenClaw](https://docs.openclaw.ai) + Groq (llama-3.1-70b)  
+**Herramienta central:** [OpenClaw](https://docs.openclaw.ai) + OpenRouter (gpt-4o-mini)  
 **Idioma:** Español (castellano centroamericano)
 
 ### Lo que los participantes van a construir
@@ -29,10 +29,12 @@ Guía completa para replicar y facilitar el taller. Incluye agenda, preparación
        → Por qué agentes IA, qué es OpenClaw, demo del vault en vivo
        
 00:15  Setup inicial en las máquinas (20 min)
-       → clone + .env + install.sh + check.js
+       → clone + .env + install.sh (chatbot base) + check.js
+       → probar el chatbot: conversa pero NO ejecuta acciones todavía
        
 00:35  Caso 1: Finanzas (35 min)
-       → expense-tracker, registrar gastos, presupuestos
+       → bash casos/finanzas/install.sh → expense-tracker
+       → registrar gastos, presupuestos (ahora sí EJECUTA)
        
 01:10  DESCANSO (10 min)
 
@@ -59,9 +61,9 @@ Guía completa para replicar y facilitar el taller. Incluye agenda, preparación
 
 - [ ] Clonar el repo y correr `bash setup/install.sh` en tu máquina
 - [ ] Verificar `node setup/check.js` — todo verde
-- [ ] Probar los 4 casos con frases del README de cada caso
+- [ ] Instalar y probar los 4 casos: `bash casos/<caso>/install.sh` con las frases del README de cada uno
 - [ ] Preparar PDFs de ejemplo para el caso 3 (facturas, contratos)
-- [ ] Si vas a usar Raspberry Pi para la demo de apertura, configurar Cloudflare Tunnel
+- [ ] Si usás la Raspberry Pi para la demo/dashboard: `bash setup/pi-setup.sh` (instala los 4 casos + relay + Cloudflare Tunnel en un solo comando)
 
 ### 30 minutos antes
 
@@ -74,19 +76,26 @@ Guía completa para replicar y facilitar el taller. Incluye agenda, preparación
 ### Durante el setup de participantes
 
 Cada participante necesita:
-1. **Groq API key** (gratis en [groq.com](https://groq.com), toma 2 min)
+1. **OpenRouter API key** (la key compartida del taller, o la propia de [openrouter.ai](https://openrouter.ai))
 2. **Bot de Telegram** (opcional para el taller básico)
 3. **Repositorio clonado** con `.env` completo
 
 ```bash
-# Comandos que cada participante ejecuta
+# Paso 1 — chatbot base (todos)
 git clone https://github.com/MarcosZam13/taller-agentes-ia.git
 cd taller-agentes-ia
 cp .env.example .env
-nano .env   # solo GROQ_API_KEY es obligatorio
+nano .env   # OPENROUTER_API_KEY es lo obligatorio
 bash setup/install.sh
 node setup/check.js
+
+# Paso 2 — cada participante elige UN caso y le da una herramienta
+bash casos/finanzas/install.sh        # o second-brain / pdf-extractor / dev-assistant
 ```
+
+> **Truco pedagógico:** hacé que prueben el bot ANTES del paso 2. Verán que solo
+> conversa. Después del instalador del caso, el mismo bot ejecuta acciones reales.
+> Esa es la demostración de "chatbot vs. agente con herramientas".
 
 ---
 
@@ -126,9 +135,18 @@ Usuario escribe → Gateway recibe → LLM procesa con SKILL.md como contexto
 → Responde al usuario
 ```
 
-### ¿Por qué Groq?
+### ¿Por qué gpt-4o-mini (OpenRouter)?
 
-Groq tiene hardware especializado (LPUs) que responde en ~300ms con Llama 3.1 70B. Para el taller es clave: los participantes ven respuestas casi instantáneas, lo que hace que la demo de "agente en tiempo real" sea convincente.
+Las skills de los casos dependen de **tool-calling nativo**: el modelo tiene que
+emitir la llamada a la herramienta como una estructura que el gateway ejecuta.
+`gpt-4o-mini` lo hace bien, es barato y rápido — por eso es el modelo validado del
+taller.
+
+> **Ojo con Groq/Llama:** el Llama de Groq responde rápido, pero emite las llamadas
+> a herramientas **como texto** (te devuelve un JSON crudo en el chat en vez de
+> ejecutar). Sirve para el chatbot pelado, pero **rompe los casos con herramientas**.
+> Fue el bug original de "solo me devuelve el JSON y no hace nada". Por eso el
+> allowlist de modelos fuerza gpt-4o-mini.
 
 ---
 
@@ -140,8 +158,9 @@ Groq tiene hardware especializado (LPUs) que responde en ~300ms con Llama 3.1 70
 | Gateway no inicia en puerto 18789 | Puerto ocupado | `openclaw gateway run --force` |
 | Vault dashboard muestra OFFLINE | Relay no está corriendo | `bash setup/open-vault.sh` |
 | Bot no responde en Telegram | Gateway caído o token expirado | `node setup/check.js` |
-| Groq da error 429 | Rate limit (muchos participantes a la vez) | Esperar 60s o cambiar a modelo 8b: `GROQ_MODEL=llama-3.1-8b-instant` |
-| Skill no reconocida | No está en el workspace | `bash setup/install.sh` de nuevo |
+| Error 429 (rate limit) | Muchas requests seguidas | Esperar 60s y reintentar |
+| El agente responde JSON crudo / solo texto | Modelo equivocado (Llama) o caso sin instalar | Confirmar OpenRouter+gpt-4o-mini (`node setup/apply-config.mjs`) y correr `bash casos/<caso>/install.sh` |
+| Skill no reconocida | El caso no se instaló | `bash casos/<caso>/install.sh` (no `setup/install.sh` — ese es solo el chatbot) |
 | `pdftotext: command not found` (Caso 3) | poppler-utils no instalado | `sudo pacman -S poppler` (Arch) / `sudo apt install poppler-utils` (Ubuntu) |
 | `python3: command not found` (Caso 4) | Python no instalado | `sudo pacman -S python` / `sudo apt install python3` |
 
@@ -178,7 +197,9 @@ taller-agentes-ia/
 ├── config/
 │   └── openclaw.json            # Config completa de OpenClaw (plantilla)
 ├── setup/
-│   ├── install.sh               # Instalación completa en Linux
+│   ├── install.sh               # Instalación global (chatbot base, sin skills)
+│   ├── install-case.mjs         # Motor compartido de los instaladores por caso
+│   ├── pi-setup.sh              # Todo-en-uno para la Pi del facilitador
 │   ├── check.js                 # Verificación del entorno
 │   ├── apply-config.mjs         # Aplica config de proveedores al gateway
 │   ├── open-dashboard.sh        # Abre el dashboard de OpenClaw con auth
@@ -188,11 +209,11 @@ taller-agentes-ia/
 │   ├── second-brain/SKILL.md
 │   ├── pdf-extractor/SKILL.md
 │   └── dev-assistant/SKILL.md
-├── casos/                       # Guías paso a paso por caso
-│   ├── finanzas/README.md       # Caso 1
-│   ├── second-brain/README.md   # Caso 2
-│   ├── pdf-extractor/README.md  # Caso 3
-│   └── dev-assistant/README.md  # Caso 4
+├── casos/                       # Cada caso: guía (README) + instalador (install.sh/.ps1)
+│   ├── finanzas/                # Caso 1 — README + install.sh/.ps1
+│   ├── second-brain/            # Caso 2
+│   ├── pdf-extractor/           # Caso 3 (necesita poppler)
+│   └── dev-assistant/           # Caso 4 (necesita python3)
 └── demo/
     └── vault/
         ├── index.html           # Vault dashboard (panel visual)
@@ -206,5 +227,5 @@ taller-agentes-ia/
 
 - [Documentación OpenClaw](https://docs.openclaw.ai)
 - [ClawHub — Skills y plugins de la comunidad](https://clawhub.ai)
-- [Groq Console — API keys y estadísticas](https://console.groq.com)
+- [OpenRouter — API keys y modelos](https://openrouter.ai)
 - [Obsidian — Para el caso Second Brain](https://obsidian.md)
