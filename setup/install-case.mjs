@@ -36,6 +36,10 @@ const BASE_DENY = [
   "write", "file_write", "apply_patch",
   "skill_workshop", "create_goal", "update_goal", "get_goal",
   "sessions_spawn", "sessions_yield", "subagents",
+  // Memoria de embeddings de OpenClaw: DENEGADA. La "memoria" del agente son los
+  // scripts deterministas (brain.js/expense.js). Sin esto, el agente podía caer al
+  // índice de embeddings (vacío + roto) y mezclar fuentes o alucinar datos.
+  "memory_search", "memory_get",
 ];
 
 // ── Manifiesto de los 4 casos ───────────────────────────────────────────────
@@ -49,7 +53,8 @@ const CASES = {
     requires: [],
     routing: [
       "| menciona que **gastó/compró/pagó** algo | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js add <monto> <categoria> \"<desc>\"` |",
-      "| pide **ver gastos / resumen** | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary` |",
+      "| pide **ver el resumen del mes** (por categoría) | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary` |",
+      "| pregunta **cuánto gastó / últimos gastos / qué gastó tal día** | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js list 20` |",
     ],
   },
   "second-brain": {
@@ -57,7 +62,10 @@ const CASES = {
     label: "Segundo cerebro 🧠",
     requires: [],
     routing: [
-      "| quiere **guardar una idea/nota** (\"anotá\", \"guardá idea\") | `node ~/.openclaw/workspace/skills/second-brain/brain.js new \"<titulo>\" --body \"<texto>\"` |",
+      "| quiere **guardar una idea/nota** (\"anotá\", \"guardá idea\") | `node ~/.openclaw/workspace/skills/second-brain/brain.js new \"<titulo>\" --tags <a,b> --body \"<texto>\"` |",
+      "| menciona una **cita/turno con fecha** (\"tengo cita el…\") | `node ~/.openclaw/workspace/skills/second-brain/brain.js new \"<titulo>\" --tags cita --due \"YYYY-MM-DD[ HH:MM]\" --body \"<detalle>\"` |",
+      "| menciona un **pago/vencimiento con fecha** (\"pagar … el …\") | `node ~/.openclaw/workspace/skills/second-brain/brain.js new \"<titulo>\" --tags pago --due \"YYYY-MM-DD\" --body \"<detalle>\"` |",
+      "| pregunta **qué se viene / próximas citas / pagos / pendientes / qué tengo que hacer** | `node ~/.openclaw/workspace/skills/second-brain/brain.js agenda` (o `agenda cita` / `agenda pago`) |",
       "| quiere **buscar en sus notas** | `node ~/.openclaw/workspace/skills/second-brain/brain.js search <texto>` |",
     ],
   },

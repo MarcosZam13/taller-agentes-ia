@@ -53,8 +53,11 @@ node {baseDir}/brain.js <comando> [argumentos]
 | Intención del usuario | Comando a ejecutar |
 |---|---|
 | Guardar una idea/nota nueva | `node {baseDir}/brain.js new "<titulo>" --tags a,b --body "<texto>"` |
+| Guardar una **cita/turno con fecha** | `node {baseDir}/brain.js new "<titulo>" --tags cita --due "YYYY-MM-DD[ HH:MM]" --body "<detalle>"` |
+| Guardar un **pago/vencimiento** | `node {baseDir}/brain.js new "<titulo>" --tags pago --due "YYYY-MM-DD" --body "<detalle>"` |
 | Nota de diario (con fecha) | `node {baseDir}/brain.js new "<titulo>" --daily --body "<texto>"` |
 | Agregar a una nota existente | `node {baseDir}/brain.js append "<titulo>" "<texto>"` |
+| **Qué se viene**: próximas citas/pagos/pendientes | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
 | Buscar algo que escribió antes | `node {baseDir}/brain.js search <texto>` |
 | Ver las últimas notas | `node {baseDir}/brain.js list 10` |
 | Leer una nota completa | `node {baseDir}/brain.js read "<titulo>"` |
@@ -64,6 +67,26 @@ node {baseDir}/brain.js <comando> [argumentos]
 El script imprime el resultado (empieza con `OK` si salió bien, o `ERROR:`).
 Reportá al usuario ese resultado de forma clara. En `read` y `search`, **citá
 siempre el archivo de origen** (el script lo incluye).
+
+## Citas, pagos y "qué tengo que hacer" (fechas)
+
+Cuando el usuario menciona algo **con fecha futura** (una cita, un turno, un pago,
+un vencimiento, un pendiente para tal día), guardalo con `--due` y el tag correcto
+(`cita` o `pago`). La fecha se calcula a partir de HOY (corré `date` si dudás del
+día) — ej.: "el 20 de julio a las 3pm" → `--due "2026-07-20 15:00"`.
+
+Para "cuáles son mis próximas citas", "qué pagos tengo", "qué tengo que hacer",
+"qué se viene": ejecutá `agenda` (o `agenda cita`/`agenda pago`). Devuelve solo lo
+de HOY en adelante, ordenado por fecha.
+
+## Recuperar = ejecutar el script, NO inventar
+
+Cuando el usuario pregunta por algo guardado, tu memoria es el script. Reportá
+**exactamente** lo que devuelve (fecha, hora, título salen del output). **Nunca**
+agregues una hora, un monto o un dato que el script no imprimió; si una cita no
+tiene hora, no te la inventes. Si `agenda`/`search` no devuelve nada, decilo y
+ofrecé guardarlo — no rellenes con datos plausibles. Las herramientas de memoria
+del sistema (`memory_search`) están deshabilitadas: la memoria vive en este vault.
 
 ## Cómo interpretar al usuario
 

@@ -7,10 +7,11 @@
 // cualquier modelo (chico o grande) y nunca corrompe una nota.
 //
 // Uso:
-//   node brain.js new "<titulo>" [--tags a,b] [--body "<texto>"] [--daily] [--force]
+//   node brain.js new "<titulo>" [--tags a,b] [--body "<texto>"] [--due "YYYY-MM-DD[ HH:MM]"] [--daily] [--force]
 //   node brain.js append "<titulo|archivo>" "<texto>"
 //   node brain.js search <texto...>            # busca en título y contenido
 //   node brain.js list [n]                      # últimas n notas (default 10)
+//   node brain.js agenda [tag]                  # citas/pagos/pendientes futuros (por fecha --due)
 //   node brain.js read "<titulo|archivo>"
 //   node brain.js link "<nota>" "<nota-destino>"   # agrega [[destino]] en Conexiones
 //   node brain.js tags                          # lista tags con conteo
@@ -87,10 +88,11 @@ function resolveNote(ref) {
 function cmdNew(args) {
   const tags = getFlag(args, "tags");
   const body = getFlag(args, "body");
+  const due = getFlag(args, "due");
   const daily = getBool(args, "daily");
   const force = getBool(args, "force");
   const titulo = args.join(" ").trim();
-  if (!titulo) throw new Error('Uso: new "<titulo>" [--tags a,b] [--body "<texto>"] [--daily]');
+  if (!titulo) throw new Error('Uso: new "<titulo>" [--tags a,b] [--body "<texto>"] [--due "YYYY-MM-DD[ HH:MM]"] [--daily]');
 
   const slug = slugTitle(titulo);
   const fileName = (daily ? `${hoy()} ${slug}` : slug) + ".md";
@@ -104,6 +106,9 @@ function cmdNew(args) {
     "---",
     `fecha: ${hoy()}`,
     `tags: [${tagList.join(", ")}]`,
+    // "vence" = fecha del evento (cita/pago/pendiente). Es lo que lee `agenda` para
+    // ordenar y filtrar lo próximo. Se guarda tal cual la pasó el agente (--due).
+    ...(due ? [`vence: ${String(due).trim()}`] : []),
     "---",
     "",
     `# ${titulo}`,
@@ -166,6 +171,48 @@ function cmdList(args) {
   }
 }
 
+// Lee el frontmatter YAML mínimo de una nota (tags, vence). Solo lo que precisa
+// `agenda`; no es un parser YAML completo (el vault lo escribe este mismo script).
+function parseFront(content) {
+  const m = content.match(/^---\n([\s\S]*?)\n---/);
+  const fm = m ? m[1] : "";
+  const tagsM = fm.match(/^tags:\s*\[(.*?)\]/m);
+  const venceM = fm.match(/^vence:\s*(.+)$/m);
+  return {
+    tags: tagsM ? tagsM[1].split(",").map((t) => t.trim()).filter(Boolean) : [],
+    vence: venceM ? venceM[1].trim() : null,
+  };
+}
+
+// agenda [tag] — lista las notas con `vence:` cuya fecha es HOY o futura, ordenadas
+// por fecha ascendente. Es la vista de "qué se viene": citas, pagos, pendientes.
+// Con un tag opcional filtra (ej. `agenda cita`). Con `--all` incluye las vencidas.
+function cmdAgenda(args) {
+  const all = getBool(args, "all");
+  const tagFilter = (args[0] || "").trim().toLowerCase();
+  const hoyStr = hoy();
+  const items = [];
+  for (const n of listNotes()) {
+    const { tags, vence } = parseFront(readFileSync(n.path, "utf8"));
+    if (!vence) continue;
+    if (tagFilter && !tags.map((t) => t.toLowerCase()).includes(tagFilter)) continue;
+    const fechaVence = vence.slice(0, 10); // parte YYYY-MM-DD para comparar/ordenar
+    if (!all && fechaVence < hoyStr) continue; // ya pasó
+    items.push({ vence, fechaVence, titulo: n.file.replace(/\.md$/, ""), tags });
+  }
+  items.sort((a, b) => a.vence.localeCompare(b.vence));
+  const etiqueta = tagFilter ? ` (tag: ${tagFilter})` : "";
+  if (items.length === 0) {
+    console.log(`No hay nada agendado${etiqueta}${all ? "" : " de hoy en adelante"}.`);
+    return;
+  }
+  console.log(`Agenda${etiqueta} — ${items.length} ítem(s):`);
+  for (const it of items) {
+    const tagStr = it.tags.length ? `  [${it.tags.join(", ")}]` : "";
+    console.log(`${it.vence}  ${it.titulo}${tagStr}`);
+  }
+}
+
 function cmdRead(args) {
   const ref = args.join(" ").trim();
   if (!ref) throw new Error('Uso: read "<titulo|archivo>"');
@@ -219,11 +266,12 @@ try {
     case "append": cmdAppend(args); break;
     case "search": cmdSearch(args); break;
     case "list": cmdList(args); break;
+    case "agenda": cmdAgenda(args); break;
     case "read": cmdRead(args); break;
     case "link": cmdLink(args); break;
     case "tags": cmdTags(); break;
     default:
-      console.log("Comandos: new | append | search | list | read | link | tags");
+      console.log("Comandos: new | append | search | list | agenda | read | link | tags");
       console.log(`Vault actual: ${VAULT}`);
       process.exit(cmd ? 1 : 0);
   }

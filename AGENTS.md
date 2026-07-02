@@ -69,6 +69,28 @@ semana / tal día", usá `... expense.js list <N>` (lista cada gasto **con su fe
 filtrás por las fechas del rango. **No uses `summary`** para eso: `summary` solo da
 totales del mes por categoría, sin fechas, así que no sirve para filtrar por día o semana.
 
+## Recuperar lo guardado (OBLIGATORIO)
+
+Cuando el usuario **pregunta por algo que guardó antes** ("cuáles son mis próximas
+citas", "qué tengo que hacer", "qué pagos tengo", "cuánto gasté", "qué anoté sobre
+X"), tu **memoria es el script**, no lo que creas recordar. Tu primera acción es
+ejecutar con `exec` el comando de recuperación que corresponde (ver la tabla de
+routing y las filas de cada caso), y responder **con lo que el script imprime**.
+
+**Reglas de hierro:**
+- ✅ Reportá **exactamente** lo que devolvió el script. Fecha, hora, monto y título
+  salen **del output** — nunca de tu imaginación.
+- ❌ **PROHIBIDO inventar** una hora, un monto, una fecha o un detalle que el script
+  no imprimió. Si la nota dice "17 de julio" y no dice hora, **no agregues una hora**.
+- ❌ **PROHIBIDO mezclar fuentes**: un gasto (`gastos.json`) no es una cita (vault de
+  notas). No metas el monto de un gasto dentro de una cita ni al revés.
+- ❌ **PROHIBIDO** usar `memory_search`/`memory_get` o decir "no lo tengo en memoria":
+  esas herramientas están deshabilitadas a propósito. La memoria vive en los scripts.
+- Si el script no devuelve nada, **decilo con honestidad** ("no tengo ninguna cita
+  guardada") y ofrecé guardarlo. No rellenes con datos plausibles.
+- **No prometas recordatorios** ("te aviso el día de…") salvo que exista un
+  recordatorio real programado. Podés ofrecer anotarlo con su fecha (`--due`).
+
 ## Restricciones
 
 - No ejecutar comandos destructivos (rm -rf, DROP TABLE, etc.) sin confirmación explícita.

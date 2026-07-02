@@ -37,6 +37,7 @@ const {
   OLLAMA_EMBED_MODEL = "nomic-embed-text",
   TELEGRAM_BOT_TOKEN = "",
   TELEGRAM_ALLOWED_USER_ID = "",
+  MEMORY_SEMANTIC = "",
 } = process.env;
 
 const hasGroq       = !!GROQ_API_KEY;
@@ -44,6 +45,14 @@ const hasAzure      = !!(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY);
 const hasOpenRouter = !!OPENROUTER_API_KEY;
 const hasOllama     = !!OLLAMA_BASE_URL;
 const hasTelegram   = !!(TELEGRAM_BOT_TOKEN && TELEGRAM_ALLOWED_USER_ID);
+// Memoria semántica (embeddings) APAGADA por defecto. Decisión del taller: la
+// memoria "que recuerda" son los scripts deterministas (brain.js / expense.js),
+// no el índice de embeddings de OpenClaw — que quedaba vacío (los datos van al
+// vault del second-brain y a gastos.json, no a workspace/memory) y encima daba
+// errores de "índice construido con distinta config" → el agente mezclaba stores
+// y alucinaba. Para DEMOSTRAR la memoria semántica en el taller: MEMORY_SEMANTIC=on
+// en .env (requiere Ollama con un modelo de embeddings).
+const semanticMemory = /^(1|true|on|yes)$/i.test(String(MEMORY_SEMANTIC).trim()) && hasOllama;
 
 if (!hasGroq && !hasAzure && !hasOpenRouter && !hasOllama) {
   console.error("Error: configurar al menos un proveedor en .env:");
@@ -142,12 +151,15 @@ if (hasOllama) {
 
   // Provider dedicado para embeddings de memoria (api nativa "ollama", SIN /v1).
   // Separado del de chat para no mezclar el endpoint openai-completions con el
-  // de embeddings. Habilita la búsqueda semántica de memoria (memorySearch).
-  providers["ollama-embed"] = {
-    baseUrl: OLLAMA_BASE_URL.replace(/\/$/, ""),
-    api: "ollama",
-    models: [{ id: OLLAMA_EMBED_MODEL, name: OLLAMA_EMBED_MODEL }],
-  };
+  // de embeddings. SOLO se agrega si la memoria semántica está encendida
+  // (MEMORY_SEMANTIC=on); por defecto la memoria son los scripts, no embeddings.
+  if (semanticMemory) {
+    providers["ollama-embed"] = {
+      baseUrl: OLLAMA_BASE_URL.replace(/\/$/, ""),
+      api: "ollama",
+      models: [{ id: OLLAMA_EMBED_MODEL, name: OLLAMA_EMBED_MODEL }],
+    };
+  }
 }
 
 // Prioridad: OpenRouter > Azure > Groq > Ollama.
@@ -235,17 +247,17 @@ const additions = {
       // que re-ejecutar este script "resetea" el agente a chatbot pelado (borra los
       // casos instalados) — es el comportamiento buscado.
       skills: [],
-      // Memoria semántica: solo si hay Ollama (embeddings locales). Sin esto, la
-      // búsqueda de memoria queda en modo palabras clave (FTS), que es el default.
-      ...(hasOllama
+      // Memoria: por defecto APAGADA (memorySearch.enabled=false). La memoria del
+      // agente son los scripts deterministas (brain.js/expense.js), no el índice de
+      // embeddings. Con MEMORY_SEMANTIC=on + Ollama se enciende para demostrarla.
+      memorySearch: semanticMemory
         ? {
-            memorySearch: {
-              provider: "ollama-embed",
-              model: OLLAMA_EMBED_MODEL,
-              query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
-            },
+            enabled: true,
+            provider: "ollama-embed",
+            model: OLLAMA_EMBED_MODEL,
+            query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
           }
-        : {}),
+        : { enabled: false },
     },
     list: [
       {
@@ -289,6 +301,18 @@ if (merged.agents?.defaults) {
     primary: primaryModel,
     ...(fallbackModels.length > 0 ? { fallbacks: fallbackModels } : {}),
   };
+  // memorySearch: forzar el valor exacto. deepMerge NO borra claves viejas, así que
+  // si el config previo tenía provider/model/query (memoria semántica encendida),
+  // hay que sobrescribir por completo para que quede {enabled:false} y no queden
+  // restos que reactiven el índice de embeddings roto.
+  merged.agents.defaults.memorySearch = semanticMemory
+    ? {
+        enabled: true,
+        provider: "ollama-embed",
+        model: OLLAMA_EMBED_MODEL,
+        query: { hybrid: { enabled: true, vectorWeight: 0.7, textWeight: 0.3 } },
+      }
+    : { enabled: false };
 }
 
 // tools: forzar el valor base (chatbot pelado). deepMerge NO borra claves, así que si
@@ -302,7 +326,9 @@ const providerName = hasOpenRouter ? "OpenRouter" : hasAzure ? "Azure OpenAI" : 
 console.log(`✓ Config escrito en ${configPath}`);
 console.log(`  Proveedor activo: ${providerName} → ${primaryModel}`);
 if (hasOllama)   console.log("  Ollama: configurado (modo local)");
-if (hasOllama)   console.log(`  Memoria semántica: embeddings con ollama-embed/${OLLAMA_EMBED_MODEL}`);
+console.log(semanticMemory
+  ? `  Memoria semántica: ENCENDIDA (embeddings ollama-embed/${OLLAMA_EMBED_MODEL})`
+  : "  Memoria semántica: APAGADA (memoria = scripts brain.js/expense.js)");
 if (hasTelegram) console.log("  Telegram: configurado");
 console.log("  El gateway recargará automáticamente (hybrid mode)");
 
