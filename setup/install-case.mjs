@@ -53,7 +53,10 @@ const CASES = {
     requires: [],
     routing: [
       "| menciona que **gastó/compró/pagó** algo | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js add <monto> <categoria> \"<desc>\"` |",
-      "| pide **ver el resumen del mes** (por categoría) | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary` |",
+      "| menciona que **le pagaron / recibió plata / un ingreso** (\"me pagaron\", \"me depositaron\", \"cobré\") | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js income <monto> \"<desc>\"` |",
+      "| pregunta **cuánto puede gastar / cuánto le queda / balance / disponible** | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js balance` (o `balance YYYY-MM`) |",
+      "| pide **ver el resumen del mes** (categorías + ingresos + disponible) | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary` (o `summary YYYY-MM`) |",
+      "| pide el **desglose de gastos de un mes** (\"de qué son los gastos de julio\") | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js list --mes YYYY-MM` |",
       "| pregunta **cuánto gastó / últimos gastos / qué gastó tal día** | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js list 20` |",
     ],
   },
@@ -90,6 +93,7 @@ const CASES = {
     ],
     routing: [
       "| pide **ejecutar/probar código Python** | `echo '<código>' \\| node ~/.openclaw/workspace/skills/dev-assistant/runpy.js snippet` |",
+      "| hace una **pregunta de cálculo** (\"cuánto es…\", \"cuántos días faltan…\", \"convertí…\") | `printf '<código python>\\n' \\| node ~/.openclaw/workspace/skills/dev-assistant/runpy.js snippet` |",
     ],
   },
 };

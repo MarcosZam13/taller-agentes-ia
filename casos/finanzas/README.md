@@ -119,7 +119,34 @@ Deberías ver una tabla con totales por categoría. Probar también:
 ```
 cuánto gasté en comida
 mis gastos de hoy
+de qué son los gastos de julio
 ```
+
+> El desglose de un mes sale de `expense.js list --mes YYYY-MM` (solo ese mes),
+> no de la lista general — así no se mezclan meses.
+
+---
+
+## Paso 5b — Ingresos y "cuánto puedo gastar" (5 min)
+
+Finanzas también lleva **ingresos**, no solo gastos. Registralos y consultá tu
+**disponible** (ingresos − gastos):
+
+```
+hoy me pagaron 50 mil
+cuánto me queda para gastar este mes
+```
+
+**Respuesta esperada:**
+```
+Ingresos    ₡50.000
+Gastos     -₡33.000
+Disponible  ₡17.000
+```
+
+> Clave: "me pagaron / me depositaron / cobré" es un **ingreso** (`income`), no un
+> gasto. "Cuánto puedo gastar / cuánto me queda" es el **balance** = ingresos −
+> gastos. El agente los **resta**, no los suma.
 
 ---
 

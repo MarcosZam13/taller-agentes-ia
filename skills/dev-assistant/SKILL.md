@@ -1,6 +1,6 @@
 ---
 name: dev-assistant
-description: Ejecuta código Python de verdad, corre tests, analiza errores y propone fixes. Para desarrolladores que quieren un asistente que prueba el código en vez de solo sugerirlo. Ejecución con timeout y output enmarcado vía script.
+description: Ejecuta código Python de verdad, corre tests, analiza errores y propone fixes. También resuelve preguntas de cálculo (matemática, porcentajes, fechas, conversiones) COMPUTÁNDOLAS con Python en vez de adivinar. Ejecución con timeout y output enmarcado vía script.
 user-invocable: true
 metadata:
   {
@@ -50,6 +50,19 @@ El runner imprime `─── STDOUT ───`, `─── STDERR ───` y `
 Reportá ese resultado al usuario. `exit code: 124` = timeout, `127` = Python no encontrado.
 
 ## Flujo según lo que pida el usuario
+
+### Cálculo rápido / pregunta de número (para CUALQUIER usuario)
+"cuánto es…", "calculá…", "qué porcentaje…", "cuántos días faltan para…",
+"convertí… a…", "cuánto da…".
+- Un LLM se equivoca en aritmética; vos **no adivinás**: traducís la pregunta a un
+  snippet corto de Python y lo **ejecutás** para dar el número exacto.
+- Ejemplos:
+  - "cuánto es el 15% de 45000" → `printf 'print(0.15*45000)\n' | node {baseDir}/runpy.js snippet`
+  - "cuántos días faltan para el 17 de julio de 2026" →
+    `printf 'from datetime import date\nprint((date(2026,7,17)-date.today()).days)\n' | node {baseDir}/runpy.js snippet`
+  - "convertí 40 dólares a colones a 515" → `printf 'print(40*515)\n' | node {baseDir}/runpy.js snippet`
+- Reportá **solo el número que imprimió el runner**, con una frase corta. No expliques
+  el código salvo que lo pidan.
 
 ### Ejecutar código
 "ejecutá este código" / "corré el script" / "probá si funciona"

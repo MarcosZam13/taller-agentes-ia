@@ -55,10 +55,13 @@ node {baseDir}/expense.js <comando> [argumentos]
 
 | Intención del usuario | Comando a ejecutar |
 |---|---|
-| Registrar un gasto | `node {baseDir}/expense.js add <monto> <categoria> "<descripcion>"` |
+| Registrar un **gasto** | `node {baseDir}/expense.js add <monto> <categoria> "<descripcion>"` |
+| Registrar un **ingreso** (le pagaron, cobró, depósito) | `node {baseDir}/expense.js income <monto> "<descripcion>"` |
+| **Cuánto puede gastar / cuánto le queda** (ingresos − gastos) | `node {baseDir}/expense.js balance` (o `balance 2026-07`) |
 | Registrar con fecha pasada | `node {baseDir}/expense.js add <monto> <categoria> "<desc>" --fecha 2026-06-01` |
-| Ver resumen del mes | `node {baseDir}/expense.js summary` |
+| Ver resumen del mes (categorías + ingresos + disponible) | `node {baseDir}/expense.js summary` |
 | Resumen de un mes específico | `node {baseDir}/expense.js summary 2026-05` |
+| **Desglose de gastos de un mes** ("de qué son los gastos de julio") | `node {baseDir}/expense.js list --mes 2026-07` |
 | Ver últimos gastos | `node {baseDir}/expense.js list 10` |
 | Fijar un presupuesto | `node {baseDir}/expense.js budget-set <categoria> <monto>` |
 | Ver cómo voy con el presupuesto | `node {baseDir}/expense.js budget-status` |
@@ -66,6 +69,25 @@ node {baseDir}/expense.js <comando> [argumentos]
 
 El script imprime el resultado (empieza con `OK` si salió bien, o `ERROR:`).
 Reportá al usuario ese resultado, formateado de forma clara.
+
+## Ingresos, gastos y "cuánto puedo gastar" (IMPORTANTE)
+
+Hay **dos tipos de movimiento distintos** — no los confundas:
+- **Gasto** (sale plata): "gasté", "compré", "pagué", "me costó" → `add`.
+- **Ingreso** (entra plata): "me pagaron", "me depositaron", "cobré", "me entró" → `income`.
+
+Un ingreso **NUNCA** se registra con `add` (eso lo contaría como gasto y rompe las
+cuentas). Cuando el usuario pregunta **"cuánto me queda / cuánto puedo gastar / cómo
+voy este mes"**, la respuesta es el **balance** (`balance`) = ingresos − gastos del
+mes. No sumes ingresos y gastos: se **restan**.
+
+## Recuperar = ejecutar el script, sin inventar ni mezclar meses
+
+Cuando el usuario pregunta por sus números, reportá **exactamente** lo que devuelve el
+script. Para el **desglose de un mes** usá `list --mes YYYY-MM` (NO `list 20`, que trae
+gastos de cualquier mes y te hace mezclar julio con junio). El total de un mes sale de
+`summary`/`balance`/`list --mes` — nunca lo calcules a mano ni inventes ítems. Si el
+mes no tiene movimientos, decilo; no rellenes con datos de otro mes.
 
 ## Cómo interpretar al usuario
 
@@ -94,6 +116,18 @@ Reportá al usuario ese resultado, formateado de forma clara.
 **Usuario:** "cuánto llevo gastado este mes"
 → Ejecutás: `node {baseDir}/expense.js summary`
 → Mostrás la tabla que devuelve el script.
+
+**Usuario:** "hoy me pagaron 50 mil"
+→ Ejecutás: `node {baseDir}/expense.js income 50000 "pago recibido"`
+→ Respondés: "✓ Ingreso registrado: ₡50.000 — pago recibido"
+
+**Usuario:** "cuánto me queda para gastar este mes"
+→ Ejecutás: `node {baseDir}/expense.js balance`
+→ Mostrás Ingresos, Gastos y **Disponible** (ingresos − gastos) que devuelve el script.
+
+**Usuario:** "de qué son los gastos de julio"
+→ Ejecutás: `node {baseDir}/expense.js list --mes 2026-07`
+→ Listás SOLO los gastos de julio con su total (no mezcles con otros meses).
 
 **Usuario:** "ponme un presupuesto de 80 mil para comida"
 → Ejecutás: `node {baseDir}/expense.js budget-set comida 80000`

@@ -7,8 +7,10 @@
 //
 // Uso:
 //   node expense.js add <monto> <categoria> <descripcion...> [--fecha YYYY-MM-DD]
+//   node expense.js income <monto> <descripcion...> [--fecha YYYY-MM-DD]   # registra un INGRESO
+//   node expense.js balance [YYYY-MM]            # ingresos − gastos del mes = disponible
 //   node expense.js summary [YYYY-MM]            # resumen por categoría (default: mes actual)
-//   node expense.js list [n]                     # últimos n gastos (default 10)
+//   node expense.js list [n] [--mes YYYY-MM]     # últimos n gastos; --mes filtra por mes
 //   node expense.js budget-set <categoria> <monto>
 //   node expense.js budget-status [categoria]
 //   node expense.js export [YYYY-MM]             # genera CSV, imprime la ruta
@@ -29,12 +31,12 @@ const CATEGORIAS = [
 ];
 
 function load() {
-  if (!existsSync(DB)) return { gastos: [], presupuestos: {} };
+  if (!existsSync(DB)) return { gastos: [], ingresos: [], presupuestos: {} };
   try {
     const d = JSON.parse(readFileSync(DB, "utf8"));
-    return { gastos: d.gastos ?? [], presupuestos: d.presupuestos ?? {} };
+    return { gastos: d.gastos ?? [], ingresos: d.ingresos ?? [], presupuestos: d.presupuestos ?? {} };
   } catch {
-    return { gastos: [], presupuestos: {} };
+    return { gastos: [], ingresos: [], presupuestos: {} };
   }
 }
 
@@ -95,11 +97,46 @@ function cmdAdd(args) {
   console.log(`OK Registrado: ${fmt(gasto.monto)} — ${gasto.categoria} — ${gasto.descripcion} (${gasto.fecha})`);
 }
 
+function cmdIncome(args) {
+  const fecha = getFlag(args, "fecha") || hoy();
+  const [monto, ...desc] = args;
+  if (monto == null) throw new Error("Uso: income <monto> <descripcion...> [--fecha YYYY-MM-DD]");
+  const db = load();
+  const ingreso = {
+    id: String(Date.now()),
+    fecha,
+    monto: parseMonto(monto),
+    moneda: "CRC",
+    descripcion: desc.join(" ").trim() || "(sin descripción)",
+  };
+  db.ingresos.push(ingreso);
+  save(db);
+  console.log(`OK Ingreso registrado: ${fmt(ingreso.monto)} — ${ingreso.descripcion} (${ingreso.fecha})`);
+}
+
+// balance del mes = ingresos − gastos = lo que queda disponible para gastar.
+function cmdBalance(args) {
+  const mes = args[0] || mesDe(hoy());
+  const db = load();
+  const ingresos = db.ingresos.filter((i) => mesDe(i.fecha) === mes).reduce((s, i) => s + i.monto, 0);
+  const gastos = db.gastos.filter((g) => mesDe(g.fecha) === mes).reduce((s, g) => s + g.monto, 0);
+  const disponible = ingresos - gastos;
+  console.log(`Balance ${mes}`);
+  console.log("─".repeat(40));
+  console.log(`${"Ingresos".padEnd(16)} ${fmt(ingresos).padStart(12)}`);
+  console.log(`${"Gastos".padEnd(16)} ${("-" + fmt(gastos)).padStart(12)}`);
+  console.log("─".repeat(40));
+  const etiqueta = disponible >= 0 ? "Disponible" : "Sobregiro";
+  console.log(`${etiqueta.padEnd(16)} ${fmt(disponible).padStart(12)}`);
+  if (ingresos === 0) console.log("(no hay ingresos registrados este mes — registralos con: income <monto> <desc>)");
+}
+
 function cmdSummary(args) {
   const mes = args[0] || mesDe(hoy());
   const db = load();
   const delMes = db.gastos.filter((g) => mesDe(g.fecha) === mes);
-  if (delMes.length === 0) { console.log(`Sin gastos registrados en ${mes}.`); return; }
+  const ingresosMes = db.ingresos.filter((i) => mesDe(i.fecha) === mes).reduce((s, i) => s + i.monto, 0);
+  if (delMes.length === 0 && ingresosMes === 0) { console.log(`Sin movimientos registrados en ${mes}.`); return; }
   const porCat = {};
   let total = 0;
   for (const g of delMes) { porCat[g.categoria] = (porCat[g.categoria] || 0) + g.monto; total += g.monto; }
@@ -107,19 +144,37 @@ function cmdSummary(args) {
   console.log(`Resumen ${mes}  (${delMes.length} gastos)`);
   console.log("─".repeat(40));
   for (const [cat, monto] of filas) {
-    const pct = ((monto / total) * 100).toFixed(0);
+    const pct = total ? ((monto / total) * 100).toFixed(0) : "0";
     console.log(`${cat.padEnd(16)} ${fmt(monto).padStart(12)}   ${pct}%`);
   }
   console.log("─".repeat(40));
-  console.log(`${"TOTAL".padEnd(16)} ${fmt(total).padStart(12)}`);
+  console.log(`${"TOTAL GASTOS".padEnd(16)} ${fmt(total).padStart(12)}`);
+  // Si hay ingresos en el mes, mostrar también ingresos y disponible (ingresos − gastos).
+  if (ingresosMes > 0) {
+    console.log(`${"INGRESOS".padEnd(16)} ${fmt(ingresosMes).padStart(12)}`);
+    const disp = ingresosMes - total;
+    console.log(`${(disp >= 0 ? "DISPONIBLE" : "SOBREGIRO").padEnd(16)} ${fmt(disp).padStart(12)}`);
+  }
 }
 
 function cmdList(args) {
-  const n = Number(args[0]) || 10;
+  const mes = getFlag(args, "mes"); // --mes YYYY-MM filtra por mes; si no, todos
+  const n = Number(args[0]) || (mes ? 100 : 10);
   const db = load();
-  const ult = db.gastos.slice(-n).reverse();
-  if (ult.length === 0) { console.log("Sin gastos registrados todavía."); return; }
-  for (const g of ult) console.log(`${g.fecha}  ${fmt(g.monto).padStart(12)}  ${g.categoria.padEnd(14)} ${g.descripcion}`);
+  let gastos = db.gastos;
+  if (mes) gastos = gastos.filter((g) => mesDe(g.fecha) === mes);
+  const ult = gastos.slice(-n).reverse();
+  if (ult.length === 0) {
+    console.log(mes ? `Sin gastos registrados en ${mes}.` : "Sin gastos registrados todavía.");
+    return;
+  }
+  if (mes) console.log(`Gastos de ${mes}  (${ult.length}):`);
+  let total = 0;
+  for (const g of ult) {
+    total += g.monto;
+    console.log(`${g.fecha}  ${fmt(g.monto).padStart(12)}  ${g.categoria.padEnd(14)} ${g.descripcion}`);
+  }
+  if (mes) console.log(`${"".padEnd(12)}${fmt(total).padStart(12)}  (total ${mes})`);
 }
 
 function cmdBudgetSet(args) {
@@ -167,13 +222,15 @@ const [cmd, ...args] = process.argv.slice(2);
 try {
   switch (cmd) {
     case "add": cmdAdd(args); break;
+    case "income": case "ingreso": cmdIncome(args); break;
+    case "balance": cmdBalance(args); break;
     case "summary": cmdSummary(args); break;
     case "list": cmdList(args); break;
     case "budget-set": cmdBudgetSet(args); break;
     case "budget-status": cmdBudgetStatus(args); break;
     case "export": cmdExport(args); break;
     default:
-      console.log("Comandos: add | summary | list | budget-set | budget-status | export");
+      console.log("Comandos: add | income | balance | summary | list | budget-set | budget-status | export");
       process.exit(cmd ? 1 : 0);
   }
 } catch (e) {

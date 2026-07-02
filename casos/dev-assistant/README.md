@@ -11,6 +11,16 @@
 
 Un asistente de desarrollo que no solo sugiere código — lo ejecuta, verifica el output y propone fixes si falla. Puede correr scripts Python, analizar tracebacks, ejecutar tests y refactorizar código, todo desde el chat.
 
+> **¿No sos desarrollador? También te sirve como calculadora exacta.** El agente NO
+> adivina la aritmética: la computa con Python. Probá desde Telegram con frases de una
+> línea:
+> - `cuánto es el 15% de 45000`
+> - `cuántos días faltan para el 17 de julio`
+> - `convertí 40 dólares a colones a un tipo de cambio de 515`
+> - `cuánto es (1250 * 12) + 3000`
+>
+> Como lo ejecuta de verdad, el número es correcto (no una "corazonada" del modelo).
+
 ---
 
 ## Requisitos previos

@@ -45,6 +45,15 @@ node {baseDir}/pdf.js text <ruta.pdf>
 guardar el CSV con `write`/`edit` en vez de `node {baseDir}/pdf.js save-csv`.
 Trabajá SIEMPRE sobre el texto real que devuelve el script.
 
+> **Nota sobre la tool nativa de PDF:** OpenClaw trae una herramienta `pdf` (de
+> visión) que está **deshabilitada a propósito** en este taller. Si intentás usarla
+> y te la deniegan, **es lo esperado** — no es un problema de acceso. Pasá directo a
+> `exec` con `pdf.js text`. Si `pdf.js` te devolvió el texto, tenés acceso COMPLETO
+> al documento: **no le digas al usuario que "tuviste problemas para acceder" ni que
+> viste "solo una parte"**. Resumí con confianza citando el documento. Solo hablá de
+> un problema real si `pdf.js` devolvió `ERROR:` (PDF escaneado sin texto, o falta
+> `pdftotext`), y en ese caso reenviá el mensaje del script tal cual.
+
 ## Comandos disponibles
 
 | Intención | Comando a ejecutar |
