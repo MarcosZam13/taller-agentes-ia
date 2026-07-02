@@ -40,6 +40,18 @@ for caso in finanzas second-brain pdf-extractor dev-assistant; do
   bash "$REPO_DIR/casos/$caso/install.sh" || warn "El caso $caso reportó algo — revisar arriba"
 done
 
+# ── 2b. Recordatorio diario por Telegram (best-effort) ────────────────────────
+# La Pi es el destino natural del "Resumen diario": corre agenda (citas/pagos) +
+# resumen de gastos y lo empuja a Telegram cada mañana. Solo si hay Telegram en .env.
+[[ -f "$REPO_DIR/.env" ]] && { set -a; . "$REPO_DIR/.env"; set +a; }
+if [[ -n "${TELEGRAM_ALLOWED_USER_ID:-}" ]]; then
+  step "2b · Recordatorio diario por Telegram"
+  bash "$REPO_DIR/setup/setup-reminders.sh" \
+    || warn "No se pudo crear el recordatorio (ver mensaje arriba; si es por scopes, revisá 'openclaw devices list')."
+else
+  warn "Sin TELEGRAM_ALLOWED_USER_ID en .env — omito el recordatorio diario (configuralo y corré: bash setup/setup-reminders.sh)."
+fi
+
 # ── 3. Dependencias del relay + servicio systemd ──────────────────────────────
 step "3/5 · Relay del vault (dashboard + datos en vivo)"
 if [[ -f "$REPO_DIR/demo/vault/package.json" ]]; then

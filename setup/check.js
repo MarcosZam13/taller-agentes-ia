@@ -107,13 +107,14 @@ const hasGroq        = !!groqKey;
 const hasAzure       = !!(azureEndpoint && azureKey);
 const hasOpenRouter  = !!openrouterKey;
 
-// Al menos un proveedor requerido
+// Al menos un proveedor requerido. Prioridad = la de apply-config.mjs:
+// OpenRouter > Azure > Groq (el primario real es el que el agente usa).
 check(
-  hasGroq || hasAzure || hasOpenRouter
-    ? `Proveedor activo: ${hasGroq ? "Groq (primario)" : hasAzure ? "Azure OpenAI" : "OpenRouter"}`
+  hasOpenRouter || hasAzure || hasGroq
+    ? `Proveedor activo: ${hasOpenRouter ? "OpenRouter (primario, gpt-4o-mini)" : hasAzure ? "Azure OpenAI (gpt-4o-mini)" : "Groq (llama-3.3-70b)"}`
     : "Ningún proveedor configurado",
-  hasGroq || hasAzure || hasOpenRouter,
-  "Configurar GROQ_API_KEY (recomendado) u OPENROUTER_API_KEY en .env"
+  hasOpenRouter || hasAzure || hasGroq,
+  "Configurar OPENROUTER_API_KEY (recomendado) en .env"
 );
 
 if (hasGroq) {
@@ -172,12 +173,13 @@ async function testEndpoint(url, headers, body, label) {
   );
 }
 
-if (hasGroq) {
+// Se testea el PRIMARIO real (mismo orden que apply-config.mjs): OpenRouter > Azure > Groq.
+if (hasOpenRouter) {
   await testEndpoint(
-    "https://api.groq.com/openai/v1/chat/completions",
-    { Authorization: `Bearer ${groqKey}` },
-    { model: "llama-3.1-8b-instant", messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
-    "Groq"
+    "https://openrouter.ai/api/v1/chat/completions",
+    { Authorization: `Bearer ${openrouterKey}` },
+    { model: "openai/gpt-4o-mini", messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
+    "OpenRouter"
   );
 } else if (hasAzure) {
   const base = azureEndpoint.replace(/\/$/, "");
@@ -187,12 +189,12 @@ if (hasGroq) {
     { messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
     "Azure OpenAI"
   );
-} else if (hasOpenRouter) {
+} else if (hasGroq) {
   await testEndpoint(
-    "https://openrouter.ai/api/v1/chat/completions",
-    { Authorization: `Bearer ${openrouterKey}` },
-    { model: "openai/gpt-4o-mini", messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
-    "OpenRouter"
+    "https://api.groq.com/openai/v1/chat/completions",
+    { Authorization: `Bearer ${groqKey}` },
+    { model: "llama-3.1-8b-instant", messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
+    "Groq"
   );
 } else {
   console.log(warn("Saltando test de conexión — ningún proveedor configurado"));

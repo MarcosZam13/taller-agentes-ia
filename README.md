@@ -178,6 +178,7 @@ taller-agentes-ia/
 │   ├── pi-setup.sh         # Todo-en-uno para la Pi del facilitador (4 casos + dashboard + Cloudflare)
 │   ├── check.js            # Verificación del entorno
 │   ├── apply-config.mjs    # Aplica config de proveedores al gateway
+│   ├── setup-reminders.sh  # (Opcional) Resumen diario por Telegram (cron nativo)
 │   ├── setup-memory-ollama.sh # (Opcional) Memoria semántica con embeddings Ollama
 │   ├── open-dashboard.sh   # Abre dashboard de OpenClaw con auth correcto
 │   └── open-vault.sh       # Arranca relay + vault dashboard

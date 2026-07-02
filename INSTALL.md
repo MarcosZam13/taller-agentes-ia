@@ -294,19 +294,23 @@ Y ejecutar `node setup/apply-config.mjs` — el script lo detecta automáticamen
 
 ### 8. (Opcional) Memoria semántica con embeddings locales
 
-La búsqueda de memoria de OpenClaw usa **embeddings** y por defecto apunta al
-proveedor `openai` (API key de pago). El proveedor del chat (OpenRouter/Groq) **no**
-hace embeddings, así que sin configurar nada la memoria queda en modo palabras clave
-(FTS). Para tener
-búsqueda **vectorial** local y gratis con Ollama, hay un script que hace todo:
+**Por defecto la memoria de los agentes son los scripts deterministas**
+(`brain.js` guarda/busca notas y citas; `expense.js` los gastos). La búsqueda
+semántica por **embeddings** de OpenClaw queda **APAGADA** (`memorySearch.enabled=false`):
+estaba vacía y con el índice roto, y hacía que el agente mezclara fuentes e inventara
+datos. Para el taller, la memoria confiable es la de los scripts.
+
+Si querés **demostrar** la memoria por embeddings (búsqueda por significado, local y
+gratis con Ollama), hay un script que la enciende:
 
 ```bash
 bash setup/setup-memory-ollama.sh
 ```
 
 Ese script instala Ollama (si falta), descarga `nomic-embed-text`, agrega
-`OLLAMA_BASE_URL`/`OLLAMA_EMBED_MODEL` al `.env`, aplica la config (registra el
-provider `ollama-embed` + el bloque `memorySearch`) y reindexa la memoria.
+`OLLAMA_BASE_URL`/`OLLAMA_EMBED_MODEL` **y `MEMORY_SEMANTIC=on`** al `.env`, aplica la
+config (registra el provider `ollama-embed` + `memorySearch.enabled=true`) y reindexa.
+Sin `MEMORY_SEMANTIC=on`, `apply-config.mjs` deja la memoria semántica apagada.
 
 Verificar que quedó activa y que la búsqueda **semántica** funciona:
 ```bash
@@ -326,7 +330,28 @@ openclaw memory search "inteligencia artificial rápida"   # debe encontrar la n
 > (este último deja el metadata incompleto en OpenClaw 2026.6.x).
 
 > Para los asistentes del taller esto es **opcional/avanzado**: la instalación
-> base funciona con memoria por palabras clave. Esto suma búsqueda semántica.
+> base recuerda todo vía los scripts (`brain.js`/`expense.js`). Esto suma la
+> búsqueda semántica por embeddings como demo.
+
+### 9. (Opcional) Recordatorio diario por Telegram
+
+Con Telegram configurado (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_ALLOWED_USER_ID`), podés
+dejar un **resumen diario** que cada mañana te empuja tu agenda (citas/pagos próximos
+con `brain.js agenda`) y tus gastos del mes:
+
+```bash
+bash setup/setup-reminders.sh          # crea el cron "Resumen diario" (07:00, Costa Rica)
+bash setup/setup-reminders.sh --test   # además dispara un push de prueba en ~2 min
+```
+
+Usa el **cron nativo de OpenClaw** (`openclaw cron`), no systemd. Horario/zona/nombre
+se pueden cambiar con `BRIEF_CRON`, `BRIEF_TZ`, `BRIEF_NAME` en `.env`.
+
+> **Gotcha (permisos):** si `cron add` falla con *"pairing required / more scopes"*,
+> el device del CLI no tiene `operator.write`. Aprobalo con
+> `openclaw devices approve <requestId>` desde un device admin; si eso también falla
+> (bootstrap circular), dale los scopes al device del CLI en
+> `~/.openclaw/devices/paired.json` y reiniciá el gateway.
 
 ### Acceder al dashboard desde otra máquina (red local)
 

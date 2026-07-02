@@ -63,7 +63,8 @@ if [ -n "$existing_id" ]; then
 fi
 
 info "Creando \"$BRIEF_NAME\" ($BRIEF_CRON, $BRIEF_TZ) → Telegram $TELEGRAM_ALLOWED_USER_ID"
-openclaw cron add \
+set +e
+add_out="$(openclaw cron add \
   --name "$BRIEF_NAME" \
   --cron "$BRIEF_CRON" \
   --tz "$BRIEF_TZ" \
@@ -73,7 +74,20 @@ openclaw cron add \
   --announce \
   --channel telegram \
   --to "$TELEGRAM_ALLOWED_USER_ID" \
-  --best-effort-deliver
+  --best-effort-deliver 2>&1)"
+add_rc=$?
+set -e
+echo "$add_out" | tail -3
+if [ $add_rc -ne 0 ]; then
+  echo "$add_out" | grep -qiE "scope|pairing|approve" && {
+    warn "El device del CLI no tiene permiso de escritura (operator.write) para crear crons."
+    warn "Arreglo: aprobá el device desde uno con admin —  openclaw devices list  → luego  openclaw devices approve <requestId>"
+    warn "Si 'approve' también falla (bootstrap circular), dale scopes al device del CLI en"
+    warn "  ~/.openclaw/devices/paired.json (agregá operator.write/admin/approvals/pairing en scopes,"
+    warn "  approvedScopes y tokens.operator.scopes), vaciá pending.json y reiniciá el gateway."
+  }
+  die "No se pudo crear el recordatorio (cron add salió con código $add_rc)."
+fi
 
 info "Listo. Verificá con: openclaw cron list"
 

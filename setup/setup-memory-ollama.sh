@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# setup-memory-ollama.sh — Activa la memoria semántica de OpenClaw con embeddings
-# locales de Ollama (sin depender de OpenAI ni internet).
+# setup-memory-ollama.sh — OPT-IN: ENCIENDE la memoria semántica de OpenClaw con
+# embeddings locales de Ollama (sin depender de OpenAI ni internet).
+#
+# IMPORTANTE: por defecto el taller corre con la memoria semántica APAGADA — la
+# "memoria" de los agentes son los scripts deterministas (brain.js/expense.js). Este
+# script es para DEMOSTRAR la memoria por embeddings: setea MEMORY_SEMANTIC=on en
+# .env y reconstruye el índice. Sin este flag, apply-config.mjs deja la memoria off.
 #
 # Qué hace:
 #   1. Verifica/instala Ollama
 #   2. Descarga el modelo de embeddings (nomic-embed-text por defecto)
-#   3. Agrega OLLAMA_BASE_URL + OLLAMA_EMBED_MODEL al .env (idempotente)
+#   3. Agrega OLLAMA_BASE_URL + OLLAMA_EMBED_MODEL + MEMORY_SEMANTIC=on al .env (idempotente)
 #   4. Crea el directorio de memoria del workspace
-#   5. Aplica la config (apply-config.mjs registra ollama-embed + memorySearch)
+#   5. Aplica la config (apply-config.mjs registra ollama-embed + memorySearch.enabled=true)
 #   6. Reinicia el gateway y reindexa la memoria
 #
 # Uso: bash setup/setup-memory-ollama.sh
+#
+# OJO (orden de instalación): si corrés esto DESPUÉS de instalar los casos, apply-config
+# resetea el agente a chatbot pelado (deepMerge reemplaza el array de skills). Corré la
+# memoria ANTES que los casos, o reinstalá los casos después (bash casos/<caso>/install.sh).
 #
 # Por qué: la búsqueda de memoria de OpenClaw usa embeddings y por defecto apunta
 # al proveedor "openai" (que requiere API key de pago). Groq no hace embeddings.
@@ -71,6 +80,8 @@ ensure_env() {
 }
 ensure_env "OLLAMA_BASE_URL"   "$OLLAMA_URL"
 ensure_env "OLLAMA_EMBED_MODEL" "$EMBED_MODEL"
+# Enciende la memoria semántica en apply-config.mjs (por defecto está apagada).
+ensure_env "MEMORY_SEMANTIC" "on"
 
 # ── 4. Directorio de memoria ──────────────────────────────────────────────────
 mkdir -p "$WORKSPACE/memory"
