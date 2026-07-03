@@ -63,6 +63,7 @@ node {baseDir}/expense.js <comando> [argumentos]
 | Resumen de un mes específico | `node {baseDir}/expense.js summary 2026-05` |
 | **Desglose de gastos de un mes** ("de qué son los gastos de julio") | `node {baseDir}/expense.js list --mes 2026-07` |
 | Ver últimos gastos | `node {baseDir}/expense.js list 10` |
+| **Cuándo compró algo por última vez / hace cuánto / cada cuánto** ("¿cuándo compré creatina?", "¿cuánto me duró?") | `node {baseDir}/expense.js search <texto>` |
 | Fijar un presupuesto | `node {baseDir}/expense.js budget-set <categoria> <monto>` |
 | Ver cómo voy con el presupuesto | `node {baseDir}/expense.js budget-status` |
 | Exportar a CSV (contabilidad) | `node {baseDir}/expense.js export` |
@@ -128,6 +129,10 @@ mes no tiene movimientos, decilo; no rellenes con datos de otro mes.
 **Usuario:** "de qué son los gastos de julio"
 → Ejecutás: `node {baseDir}/expense.js list --mes 2026-07`
 → Listás SOLO los gastos de julio con su total (no mezcles con otros meses).
+
+**Usuario:** "¿cuándo fue la última vez que compré creatina?"
+→ Ejecutás: `node {baseDir}/expense.js search creatina`
+→ Reportás **exactamente** la fecha, el monto y el "hace X días" que imprime el script. Si dice "Sin gastos que coincidan", decí que no hay ninguna compra registrada con esa palabra — **no inventes una fecha** (el agente solo sabe lo que se registró).
 
 **Usuario:** "ponme un presupuesto de 80 mil para comida"
 → Ejecutás: `node {baseDir}/expense.js budget-set comida 80000`

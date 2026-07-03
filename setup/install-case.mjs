@@ -58,6 +58,7 @@ const CASES = {
       "| pide **ver el resumen del mes** (categorías + ingresos + disponible) | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary` (o `summary YYYY-MM`) |",
       "| pide el **desglose de gastos de un mes** (\"de qué son los gastos de julio\") | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js list --mes YYYY-MM` |",
       "| pregunta **cuánto gastó / últimos gastos / qué gastó tal día** | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js list 20` |",
+      "| pregunta **cuándo compró algo por última vez / hace cuánto / cada cuánto lo compra** (\"cuándo compré creatina\", \"cuánto me duró\") | `node ~/.openclaw/workspace/skills/expense-tracker/expense.js search <texto>` |",
     ],
   },
   "second-brain": {

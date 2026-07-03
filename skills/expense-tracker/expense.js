@@ -11,6 +11,7 @@
 //   node expense.js balance [YYYY-MM]            # ingresos − gastos del mes = disponible
 //   node expense.js summary [YYYY-MM]            # resumen por categoría (default: mes actual)
 //   node expense.js list [n] [--mes YYYY-MM]     # últimos n gastos; --mes filtra por mes
+//   node expense.js search <texto...>            # busca por descripción/categoría: última compra, hace cuánto y cada cuánto
 //   node expense.js budget-set <categoria> <monto>
 //   node expense.js budget-status [categoria]
 //   node expense.js export [YYYY-MM]             # genera CSV, imprime la ruta
@@ -54,6 +55,20 @@ const hoy = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 const mesDe = (fecha) => fecha.slice(0, 7);
+// Días entre dos fechas YYYY-MM-DD (usa UTC para las DOS: al restar se cancela y no
+// hay corrimiento por zona horaria). Positivo si b es posterior a a.
+const diasEntre = (aStr, bStr) => {
+  const [ay, am, ad] = aStr.slice(0, 10).split("-").map(Number);
+  const [by, bm, bd] = bStr.slice(0, 10).split("-").map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+};
+// "hace 3 días" / "hoy" / "ayer" a partir de una fecha pasada.
+const haceTexto = (fecha) => {
+  const d = diasEntre(fecha, hoy());
+  if (d <= 0) return "hoy";
+  if (d === 1) return "ayer (hace 1 día)";
+  return `hace ${d} días`;
+};
 
 function parseMonto(s) {
   // "8.500", "8,500", "₡8500", "12.400" -> número
@@ -177,6 +192,39 @@ function cmdList(args) {
   if (mes) console.log(`${"".padEnd(12)}${fmt(total).padStart(12)}  (total ${mes})`);
 }
 
+// search <texto> — encuentra gastos cuya descripción o categoría contenga el texto,
+// del más reciente al más viejo. Responde "¿cuándo compré X por última vez?" y
+// "¿cada cuánto lo compro?" (intervalo entre las dos últimas compras).
+function cmdSearch(args) {
+  const query = args.join(" ").trim().toLowerCase();
+  if (!query) throw new Error("Uso: search <texto...>");
+  const db = load();
+  const matches = db.gastos
+    .filter((g) =>
+      (g.descripcion || "").toLowerCase().includes(query) ||
+      (g.categoria || "").toLowerCase().includes(query))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha)); // más reciente primero
+  if (matches.length === 0) {
+    console.log(`Sin gastos que coincidan con "${query}". (Solo se conoce lo que se registró.)`);
+    return;
+  }
+  const ult = matches[0];
+  console.log(`Última compra que coincide con "${query}": ${ult.fecha} — ${fmt(ult.monto)} — ${ult.descripcion} (${haceTexto(ult.fecha)})`);
+  if (matches.length >= 2) {
+    const prev = matches[1];
+    const duro = diasEntre(prev.fecha, ult.fecha);
+    console.log(`Compra anterior: ${prev.fecha} — ${fmt(prev.monto)} — ${prev.descripcion} (pasaron ${duro} día${duro === 1 ? "" : "s"} entre esas dos)`);
+  }
+  console.log("─".repeat(40));
+  console.log(`${matches.length} compra(s) que coinciden:`);
+  let total = 0;
+  for (const g of matches) {
+    total += g.monto;
+    console.log(`${g.fecha}  ${fmt(g.monto).padStart(12)}  ${g.categoria.padEnd(14)} ${g.descripcion}`);
+  }
+  console.log(`${"".padEnd(12)}${fmt(total).padStart(12)}  (total ${matches.length} compra${matches.length === 1 ? "" : "s"})`);
+}
+
 function cmdBudgetSet(args) {
   const [categoria, monto] = args;
   if (categoria == null || monto == null) throw new Error("Uso: budget-set <categoria> <monto>");
@@ -226,11 +274,12 @@ try {
     case "balance": cmdBalance(args); break;
     case "summary": cmdSummary(args); break;
     case "list": cmdList(args); break;
+    case "search": case "buscar": cmdSearch(args); break;
     case "budget-set": cmdBudgetSet(args); break;
     case "budget-status": cmdBudgetStatus(args); break;
     case "export": cmdExport(args); break;
     default:
-      console.log("Comandos: add | income | balance | summary | list | budget-set | budget-status | export");
+      console.log("Comandos: add | income | balance | summary | list | search | budget-set | budget-status | export");
       process.exit(cmd ? 1 : 0);
   }
 } catch (e) {
