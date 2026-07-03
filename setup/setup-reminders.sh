@@ -62,29 +62,53 @@ if [ -n "$existing_id" ]; then
   openclaw cron rm "$existing_id" >/dev/null 2>&1 || warn "No pude borrar $existing_id (sigo)."
 fi
 
+crear_brief() {
+  openclaw cron add \
+    --name "$BRIEF_NAME" \
+    --cron "$BRIEF_CRON" \
+    --tz "$BRIEF_TZ" \
+    --agent main \
+    --session isolated \
+    --message "$BRIEF_PROMPT" \
+    --announce \
+    --channel telegram \
+    --to "$TELEGRAM_ALLOWED_USER_ID" \
+    --best-effort-deliver 2>&1
+}
+
 info "Creando \"$BRIEF_NAME\" ($BRIEF_CRON, $BRIEF_TZ) → Telegram $TELEGRAM_ALLOWED_USER_ID"
 set +e
-add_out="$(openclaw cron add \
-  --name "$BRIEF_NAME" \
-  --cron "$BRIEF_CRON" \
-  --tz "$BRIEF_TZ" \
-  --agent main \
-  --session isolated \
-  --message "$BRIEF_PROMPT" \
-  --announce \
-  --channel telegram \
-  --to "$TELEGRAM_ALLOWED_USER_ID" \
-  --best-effort-deliver 2>&1)"
-add_rc=$?
+add_out="$(crear_brief)"; add_rc=$?
 set -e
+
+# Auto-remediar el gotcha de scopes: el device del CLI nace con solo operator.read y
+# `cron add` necesita operator.write. Otorgamos scopes, reiniciamos el gateway y
+# reintentamos UNA vez (en vez de solo imprimir instrucciones manuales).
+if [ $add_rc -ne 0 ] && echo "$add_out" | grep -qiE "scope|pairing|operator\.write|permiso de escritura"; then
+  warn "El device del CLI no tiene operator.write. Otorgando scopes automáticamente…"
+  if node "$ROOT/setup/grant-cli-scopes.mjs"; then
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl --user restart openclaw-gateway >/dev/null 2>&1 \
+        || warn "No pude reiniciar el gateway — hacelo a mano: systemctl --user restart openclaw-gateway"
+      for _ in $(seq 1 15); do
+        systemctl --user is-active openclaw-gateway 2>/dev/null | grep -q active && { sleep 2; break; }
+        sleep 1
+      done
+    else
+      warn "Sin systemctl: reiniciá el gateway manualmente y reintentá."
+    fi
+    info "Reintentando crear el recordatorio…"
+    set +e; add_out="$(crear_brief)"; add_rc=$?; set -e
+  fi
+fi
+
 echo "$add_out" | tail -3
 if [ $add_rc -ne 0 ]; then
-  echo "$add_out" | grep -qiE "scope|pairing|approve" && {
-    warn "El device del CLI no tiene permiso de escritura (operator.write) para crear crons."
-    warn "Arreglo: aprobá el device desde uno con admin —  openclaw devices list  → luego  openclaw devices approve <requestId>"
-    warn "Si 'approve' también falla (bootstrap circular), dale scopes al device del CLI en"
-    warn "  ~/.openclaw/devices/paired.json (agregá operator.write/admin/approvals/pairing en scopes,"
-    warn "  approvedScopes y tokens.operator.scopes), vaciá pending.json y reiniciá el gateway."
+  echo "$add_out" | grep -qiE "credential|token|password" && {
+    warn "Falta el token de auth del gateway. Corré primero:  node setup/apply-config.mjs  (genera gateway.auth.token) y reiniciá el gateway."
+  }
+  echo "$add_out" | grep -qiE "scope|pairing" && {
+    warn "Persistió el problema de scopes. Fix manual: node setup/grant-cli-scopes.mjs && systemctl --user restart openclaw-gateway"
   }
   die "No se pudo crear el recordatorio (cron add salió con código $add_rc)."
 fi

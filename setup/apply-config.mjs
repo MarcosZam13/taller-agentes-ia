@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { randomBytes } from "crypto";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "..");
@@ -320,6 +321,17 @@ if (merged.agents?.defaults) {
 // herramientas. Re-ejecutar el instalador global "resetea" el agente a baseline.
 merged.tools = toolsConfig;
 
+// gateway.auth.token: el relay (demo/vault/relay.mjs) y el CLI (`openclaw cron add`)
+// se autentican contra el gateway por WebSocket con ESTE token. En una instalación
+// limpia no existe → el relay crashea ("gateway.auth.token no encontrado") y el cron
+// falla ("requires credentials"). Si falta, lo generamos una vez y lo persistimos; si
+// ya existía (deepMerge lo preserva), no lo tocamos para no invalidar sesiones.
+merged.gateway = merged.gateway || {};
+const tokenPreexistente = Boolean(merged.gateway.auth?.token);
+if (!tokenPreexistente) {
+  merged.gateway.auth = { mode: "token", token: randomBytes(24).toString("hex") };
+}
+
 writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
 
 const providerName = hasOpenRouter ? "OpenRouter" : hasAzure ? "Azure OpenAI" : hasGroq ? "Groq" : "Ollama (local)";
@@ -330,6 +342,7 @@ console.log(semanticMemory
   ? `  Memoria semántica: ENCENDIDA (embeddings ollama-embed/${OLLAMA_EMBED_MODEL})`
   : "  Memoria semántica: APAGADA (memoria = scripts brain.js/expense.js)");
 if (hasTelegram) console.log("  Telegram: configurado");
+console.log(`  Gateway auth: token ${tokenPreexistente ? "preservado" : "generado"} (lo usan el relay y los crons)`);
 console.log("  El gateway recargará automáticamente (hybrid mode)");
 
 // Verificar que el gateway procesó el cambio

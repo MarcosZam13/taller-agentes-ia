@@ -21,6 +21,9 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELAY_PORT=3001
 USER_UNIT_DIR="$HOME/.config/systemd/user"
+# cloudflared escribe acá su log. Leemos la URL del túnel de este archivo, NO de
+# journalctl: en la Pi el journald de usuario no persiste y la URL nunca aparecía.
+CF_LOG="$HOME/cloudflared.log"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[+]${NC} $*"; }
@@ -126,7 +129,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$CF_BIN tunnel --no-autoupdate run --token $CF_TUNNEL_TOKEN
+ExecStart=$CF_BIN tunnel --no-autoupdate --loglevel info --logfile $CF_LOG run --token $CF_TUNNEL_TOKEN
 Restart=always
 RestartSec=5
 
@@ -147,23 +150,28 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=$CF_BIN tunnel --no-autoupdate --url http://localhost:$RELAY_PORT
+ExecStart=$CF_BIN tunnel --no-autoupdate --loglevel info --logfile $CF_LOG --url http://localhost:$RELAY_PORT
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=default.target
 EOF
+  : > "$CF_LOG" 2>/dev/null || true   # log fresco para leer la URL de este arranque
   systemctl --user daemon-reload
-  systemctl --user enable --now taller-cloudflared.service
-  sleep 6
-  URL="$(journalctl --user -u taller-cloudflared --no-pager -n 50 2>/dev/null | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1 || true)"
+  systemctl --user restart taller-cloudflared.service 2>/dev/null || systemctl --user enable --now taller-cloudflared.service
+  URL=""
+  for _ in $(seq 1 20); do
+    URL="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null | tail -1 || true)"
+    [[ -n "$URL" ]] && break
+    sleep 1
+  done
   echo ""
   if [[ -n "$URL" ]]; then
     info "URL pública del dashboard: ${CYAN}$URL${NC}"
   else
     warn "Aún no aparece la URL. Buscala con:"
-    echo "    journalctl --user -u taller-cloudflared -f | grep trycloudflare"
+    echo "    grep trycloudflare $CF_LOG"
   fi
   warn "Túnel rápido: la URL CAMBIA cada vez que reinicia. Para URL fija, usá CF_TUNNEL_TOKEN."
 fi
@@ -173,5 +181,5 @@ info "=== Pi lista ==="
 echo "  Dashboard (local):  http://localhost:$RELAY_PORT"
 echo "  Dashboard (público): la URL de Cloudflare de arriba — abrila en cualquier celular"
 echo "  Estado servicios:   systemctl --user status taller-vault-relay taller-cloudflared"
-echo "  Logs del túnel:     journalctl --user -u taller-cloudflared -f"
+echo "  Logs del túnel:     tail -f $CF_LOG"
 echo "  Probar el agente:   abrí Telegram y escribile, o mirá el dashboard reaccionar"
