@@ -255,6 +255,35 @@ Meta: agregar `top` a finanzas → "¿en qué categoría gasto más?".
 
 5. Probá en el chat: *"¿en qué se me va la plata?"* → el agente corre `expense.js top`.
 
+### 🏆 Reto — Adaptá finanzas a tu país: colones (₡) → dólares (US$) (20 min)
+
+El caso de finanzas viene en **colones (₡)** porque así lo usa el facilitador, pero el
+taller es en **El Salvador**, que usa **dólares (US$)**. Si elegís el caso de finanzas,
+un reto ideal es **localizarlo a tu moneda**. Toca las **dos capas** de una skill: el
+motor (cómo se muestra el número) y el prompt (cómo habla).
+
+1. **Motor** — en `skills/expense-tracker/expense.js` está el formateador de moneda:
+   ```js
+   const fmt = (n) => "₡" + Math.round(n).toLocaleString("es-CR");
+   ```
+   Cambialo a dólares (con centavos):
+   ```js
+   const fmt = (n) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+   ```
+
+2. **Prompt** — en `skills/expense-tracker/SKILL.md`, reemplazá lo específico de Costa
+   Rica: `"para Costa Rica"` → `"para El Salvador"`, `₡` → `$`, "colones" → "dólares", y
+   en la sección **Tono** el símbolo de los ejemplos.
+
+3. **Reinstalá y probá:**
+   ```bash
+   bash casos/finanzas/install.sh
+   ```
+   *"gasté 5 dólares en café"* → debería confirmar **`$5.00`**, no `₡5`.
+
+> Lección: la **misma skill** sirve para cualquier país cambiando el motor (formato) y
+> el prompt (idioma/moneda). El agente no "sabe" de monedas — se lo enseñás vos.
+
 ---
 
 ## 6. Crear una SKILL nueva desde cero
