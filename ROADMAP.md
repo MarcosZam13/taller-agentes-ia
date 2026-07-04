@@ -16,9 +16,10 @@ Prioridades ordenadas por impacto en el taller. Cada ítem incluye qué hace fal
 ### 1.2 Raspberry Pi como servidor permanente ✅ (parcial, ver 1.3)
 **Por qué:** Tener la Pi siempre encendida con el gateway y el relay corriendo elimina la necesidad de que el facilitador prepare su laptop antes de cada sesión.  
 **Qué falta:**
-- [ ] Agregar systemd user service para el relay (igual que el gateway)
-- [ ] Script `setup/pi-setup.sh` específico para Pi con Ollama + cloudflared + linger
+- [x] Agregar systemd user service para el relay (igual que el gateway) — `taller-vault-relay.service` en `pi-setup.sh`
+- [x] Script `setup/pi-setup.sh` específico para Pi con Ollama + cloudflared + linger
 - [ ] Documentar proceso de actualización remota (git pull + restart services)
+- [ ] Dejar la Pi 24/7 estable + Cloudflare con dominio fijo `vault.gymbase.fit` (ver 1.3)
 
 **Cómo hacerlo:**
 ```bash

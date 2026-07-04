@@ -93,10 +93,25 @@ body::after {
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
-  transition: filter .2s;
+  transition: filter .35s ease, box-shadow .35s ease, transform .35s ease;
   min-height: 0;
 }
 .room:hover { filter: brightness(1.15); }
+
+/* ── Cuarto ACTIVO: el agente está trabajando → se ilumina de verdad ── */
+.room.active {
+  filter: brightness(1.28) saturate(1.3);
+  box-shadow: inset 0 0 46px var(--accent-glow, rgba(34,197,94,.2)),
+              0 0 26px var(--accent, var(--green));
+  transform: translateY(-2px);
+  animation: room-live 1.1s ease-in-out infinite;
+}
+@keyframes room-live {
+  0%,100% { box-shadow: inset 0 0 40px var(--accent-glow, rgba(34,197,94,.2)), 0 0 18px var(--accent, var(--green)); }
+  50%     { box-shadow: inset 0 0 60px var(--accent-glow, rgba(34,197,94,.2)), 0 0 34px var(--accent, var(--green)); }
+}
+.room.active .room-bg   { filter: brightness(1.18) saturate(1.2); }
+.room.active .room-glow { opacity: 1; filter: brightness(1.7); animation-duration: 1.1s; }
 
 /* Shared layers */
 .room-bg, .room-furn, .room-floor, .room-glow, .room-vignette {
@@ -300,7 +315,7 @@ body::after {
   <div class="hi"><span class="v" id="st-msgs">0</span><span class="l">MENSAJES</span></div>
   <div class="hi"><span class="v" id="st-up">00:00</span><span class="l">UPTIME</span></div>
   <div class="hbw">
-    <div class="hbr"><span class="bl">GROQ</span><div class="htrack"><div class="hfill" id="bar-g" style="width:0%;background:var(--green)"></div></div></div>
+    <div class="hbr"><span class="bl" id="hud-prov">LLM</span><div class="htrack"><div class="hfill" id="bar-g" style="width:0%;background:var(--green)"></div></div></div>
     <div class="hbr"><span class="bl">ACTIVO</span><div class="htrack"><div class="hfill" id="bar-a" style="width:0%;background:var(--amber)"></div></div></div>
   </div>
   <div id="hud-online"><div class="dot"></div><span id="st-onl">ONLINE</span></div>
@@ -313,7 +328,7 @@ body::after {
     <div id="feed"></div>
     <div class="sb-stat">
       <div class="sbr"><span class="k">GATEWAY</span><span class="v" id="sb-gw">CONECTANDO</span></div>
-      <div class="sbr"><span class="k">MODELO</span><span class="v" id="sb-model">Groq Llama 70B</span></div>
+      <div class="sbr"><span class="k">MODELO</span><span class="v" id="sb-model">gpt-4o-mini</span></div>
       <div class="sbr"><span class="k">TELEGRAM</span><span class="v" id="sb-tg">activo</span></div>
       <div class="sbr"><span class="k">SKILLS</span><span class="v">4 cargados</span></div>
     </div>
@@ -608,6 +623,12 @@ async function pollRelay() {
       setOffline();
     }
 
+    // Relay real conectado ⇒ nunca simular actividad, aunque todavía no haya
+    // llegado ningún mensaje. (Antes hasRelayData solo se prendía con el primer
+    // evento, así que en un dashboard recién abierto el loop demo encendía
+    // cuartos al azar.) La intro startupSeq() no depende de esto y se mantiene.
+    if (data.connected) S.hasRelayData = true;
+
     // Contador real de agentes
     if (Array.isArray(data.agents) && data.agents.length) {
       document.getElementById('st-agents').textContent = data.agents.length;
@@ -619,10 +640,13 @@ async function pollRelay() {
       updateStats();
     }
 
-    // Modelo real
+    // Modelo y proveedor reales (ej. "openrouter/openai/gpt-4o-mini").
     if (data.stats?.model) {
-      const m = data.stats.model.replace('groq/', '').replace('-versatile', '').replace('llama-', 'Llama ');
-      document.getElementById('sb-model').textContent = m;
+      const segs = data.stats.model.split('/');
+      const provider = segs.length > 1 ? segs[0] : '';   // openrouter / groq / azure…
+      const modelName = segs[segs.length - 1];            // gpt-4o-mini
+      document.getElementById('sb-model').textContent = modelName;
+      if (provider) document.getElementById('hud-prov').textContent = provider.toUpperCase();
     }
 
     // Eventos nuevos (el relay los ordena del más reciente al más viejo)
@@ -655,11 +679,12 @@ function activate(id, text, dir) {
   if (text) addFeed(id, text, dir);
   updateStats();
   document.getElementById('bar-a').style.width = Math.min(S.totalMsgs * 7, 92) + '%';
-  setTimeout(() => {
+  clearTimeout(S.rooms[id]._t);
+  S.rooms[id]._t = setTimeout(() => {
     S.rooms[id].status = 'standby';
     S.rooms[id].activity = 5 + Math.random() * 10;
     updateCard(id);
-  }, 2800);
+  }, 5000);
 }
 
 function setOnline() {
@@ -725,7 +750,7 @@ setInterval(() => {
 }, 1000);
 
 const AUTO_LOGS = [
-  'GATEWAY: heartbeat OK', 'GROQ API: latencia ~320ms',
+  'GATEWAY: heartbeat OK', 'LLM API: latencia ~320ms',
   'TELEGRAM: polling activo', 'VAULT: todos los sistemas nominales',
   'SKILLS: 4/4 cargados', 'MEMORY: workspace activo',
 ];

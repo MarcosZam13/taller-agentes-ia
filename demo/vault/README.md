@@ -22,7 +22,7 @@ El script hace todo: verifica el gateway, instala dependencias, arranca el relay
 ```
 Gateway OpenClaw (WS :18789)
         ↓
-  relay.mjs (Node.js)   ← se autentica como operador
+  relay.mjs (Node.js)   ← se autentica como DEVICE firmado (Ed25519)
         ↓ HTTP CORS
   localhost:3001/events  ← polling cada 3s
         ↓
@@ -30,6 +30,27 @@ Gateway OpenClaw (WS :18789)
 ```
 
 El relay resuelve el problema de CORS: el dashboard abierto como `file://` no puede conectarse directamente al WebSocket del gateway. El relay conecta desde Node.js (sin restricción de origen) y expone un endpoint HTTP con CORS abierto.
+
+### Datos reales vs. modo demo
+
+Para ver **actividad real** (agentes y mensajes de verdad, no simulados), el gateway
+solo entrega scopes de operador a un cliente que se autentique como un **device
+pareado**. El relay reusa la identidad del CLI (`~/.openclaw/identity/device.json`,
+Ed25519) y **firma el challenge** del gateway (protocolo 4, `client.id=openclaw-control-ui`,
+`mode=ui`) para obtener `operator.read`. Con eso:
+
+- Llama `agents.list` / `sessions.list` (bajo `msg.payload`) y **se suscribe** a
+  `sessions.messages.subscribe({key})` de cada sesión para recibir los mensajes en vivo.
+- Enruta cada mensaje al cuarto correcto por el **skill** que ejecutó el agente
+  (derivado del path del comando, `skills/<skill>/…`), no por palabras sueltas.
+
+Requisito: el device del CLI debe estar pareado con `operator.read` (ocurre por
+defecto; `setup/grant-cli-scopes.mjs` lo asegura junto con los scopes de escritura
+que necesita el cron). **Si no hay device pareado**, el relay conecta de forma
+anónima y el dashboard cae con gracia a **modo demo** (actividad simulada), sin romperse.
+
+Flags útiles: `RELAY_PORT=3002` (probar sin tocar el servicio en 3001) y
+`RELAY_DEBUG=1` (volcar los eventos crudos del gateway).
 
 ---
 
