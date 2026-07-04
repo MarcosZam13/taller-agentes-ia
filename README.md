@@ -61,6 +61,10 @@ bash setup/open-vault.sh
 
 El vault es el panel visual del taller — muestra los 4 agentes en tiempo real con pixel art y datos reales del gateway.
 
+🌐 **En vivo (durante el taller):** **[vault.gymbase.fit](https://vault.gymbase.fit)** — abrilo desde cualquier dispositivo (celular, laptop) mientras la Raspberry Pi está encendida.
+
+Para correrlo en tu propia máquina (local):
+
 ```bash
 bash setup/open-vault.sh
 ```
