@@ -135,6 +135,15 @@ correr los tests en /tmp/mis_tests.py
 
 ---
 
+## Crear y modificar agentes 🛠️
+
+Los 4 casos vienen hechos, pero lo más formativo del taller es aprender a **construir
+los tuyos**. La [**Guía para crear agentes**](GUIA-CREAR-AGENTES.md) explica cómo están
+hechos por dentro (personalidad, herramientas, skills) y trae ejercicios para modificar
+los casos existentes y crear una skill/caso nuevo desde cero.
+
+---
+
 ## Comandos útiles
 
 ```bash
@@ -166,6 +175,7 @@ node setup/check.js
 taller-agentes-ia/
 ├── README.md               # Este archivo
 ├── GUIA-PARTICIPANTE.md    # Guía simple para asistentes (instalación local)
+├── GUIA-CREAR-AGENTES.md   # Cómo crear/modificar agentes: personalidad, tools, skills
 ├── INSTALL.md              # Instalación detallada + servidor Pi / Cloudflare / Vercel
 ├── TALLER.md               # Guía del facilitador con agenda y troubleshooting
 ├── AGENTS.md               # Instrucciones base del agente (workspace)

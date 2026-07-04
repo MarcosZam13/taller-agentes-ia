@@ -234,3 +234,11 @@ node setup/apply-config.mjs
 ```
 
 ¿Seguís trabado? Avisale al facilitador con una captura del error.
+
+---
+
+## 🚀 Siguiente paso: hacé el tuyo
+
+Ya instalaste los casos hechos. Ahora aprendé a **construir los tuyos**: darles
+personalidad, herramientas y crear tus propias skills. Todo está, con ejercicios, en la
+[**Guía para crear agentes**](GUIA-CREAR-AGENTES.md).
