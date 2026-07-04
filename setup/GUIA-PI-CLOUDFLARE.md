@@ -94,8 +94,16 @@ Seguís en el asistente del túnel (pestaña **Public Hostname / Route traffic**
 
 Cloudflare crea solo el registro DNS de `vault.gymbase.fit`. No tenés que tocar DNS a mano.
 
-> Si más adelante querés cambiar a dónde apunta, es en **Networks → Tunnels →
-> taller-pi → Public Hostname**.
+> **UI nueva de Cloudflare:** en paneles recientes esto no se llama "Public
+> Hostname" sino **Routes**. En la vista del túnel, click **`+ Add route`** →
+> elegí **Published application** (el ícono del globo) → completá subdomain
+> `vault`, domain `gymbase.fit`, y el servicio.
+
+> ⚠️ **El Type/Service DEBE ser `HTTP`, no `HTTPS`.** El relay del dashboard sirve
+> HTTP plano en `localhost:3001`. Si dejás `https://localhost:3001`, cloudflared
+> intenta un handshake TLS contra un servidor HTTP y devuelve **502**
+> (`tls: first record does not look like a TLS handshake`). Si te pasa, editá la
+> route en **Networks → Tunnels → taller-pi → Routes** y cambiá el Type a `HTTP`.
 
 ---
 
