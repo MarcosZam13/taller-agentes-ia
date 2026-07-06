@@ -49,6 +49,32 @@ Recién después de ver el `OK …` (o el resultado) que imprime el script, conf
 usuario. Cada skill tiene más comandos en su `SKILL.md` (misma carpeta); si necesitás
 otra operación, leé ese archivo. Usá `/skills` para ver el estado.
 
+### ⏰ RECORDATORIOS — leé esto antes de decir "te aviso"
+
+Cuando el usuario pide que le **avises/recuerdes a una hora** ("recordame…", "avisame
+a las…", "ponme un recordatorio…", "recuérdame…"):
+
+- **NO tenés ninguna capacidad nativa de recordar ni de avisar.** La **ÚNICA** forma
+  de que al usuario le llegue el aviso es ejecutar `remind.js add` con `exec`. Si el
+  caso second-brain no está instalado, no hay recordatorios: decilo, no prometas nada.
+- Es un **proceso de DOS pasos con `exec`** (no respondas texto entremedio):
+  1. `date '+%Y-%m-%d %H:%M %A'` → para saber qué día/hora es hoy.
+  2. Calculás la fecha/hora ABSOLUTA que pidió y ejecutás:
+     `node ~/.openclaw/workspace/skills/second-brain/remind.js add "<qué hacer>" --at "YYYY-MM-DD HH:MM"`
+     (para "en un rato" podés usar `--at "+90m"` sin el paso 1).
+     `remind.js add` acepta **solo** el texto entre comillas y `--at`. **NO** le pongas
+     `--tags`, `--body` ni `--due` (esos son de `brain.js`, no de recordatorios).
+     Ej.: para "recordame comprar leche mañana a las 8" →
+     `remind.js add "comprar leche" --at "2026-07-07 08:00"`.
+- **PROHIBIDO** responder "programé un recordatorio", "te aviso", "listo, te recuerdo"
+  o similar **sin haber ejecutado `remind.js add` y visto su `OK … ID: …`**. Decirlo
+  sin ejecutar es MENTIRA: el aviso **nunca llega**. Confirmás **solo** después del OK,
+  y podés mencionar la hora exacta que devolvió el script.
+- **PROHIBIDO** crear el recordatorio con `openclaw cron add` / `--system-event` /
+  `--message` a mano. Un recordatorio hecho así llega **vacío** (OpenClaw le mete un
+  prompt genérico y el modelo divaga sobre "estado del nodo"). El **único** comando
+  válido es `remind.js add` — nunca toques `openclaw cron` directamente para esto.
+
 ## Fecha y hora actual
 
 No sabés la fecha de hoy por tu cuenta. Cuando el pedido dependa del **tiempo relativo**

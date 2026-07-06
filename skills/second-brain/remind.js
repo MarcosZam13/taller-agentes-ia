@@ -81,7 +81,11 @@ function cmdAdd(args) {
   const at = getFlag(args, "at");
   const to = getFlag(args, "to");
   const tz = getFlag(args, "tz") || process.env.BRIEF_TZ || TZ_DEFAULT;
-  const texto = args.join(" ").trim();
+  // Defensa: el modelo a veces copia flags de brain.js (--tags/--body/--due) que
+  // remind.js no usa. El texto del recordatorio es SOLO lo anterior al primer
+  // "--flag" que haya quedado; lo demás se descarta para no ensuciar el mensaje.
+  const cut = args.findIndex((a) => a.startsWith("--"));
+  const texto = (cut === -1 ? args : args.slice(0, cut)).join(" ").trim();
 
   if (!texto) throw new Error('Falta el texto. Uso: add "<texto>" --at "<cuándo>"');
   if (!at) throw new Error('Falta --at. Ej: --at "2026-07-07 05:00"  o  --at "+2h"');
