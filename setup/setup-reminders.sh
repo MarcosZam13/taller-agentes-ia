@@ -46,10 +46,12 @@ BRIEF_NAME="${BRIEF_NAME:-Resumen diario}"
 BRIEF_PROMPT=$(cat <<'PROMPT'
 Armá el resumen diario del usuario, en español y en tono cercano (usá "vos"). Seguí estos pasos con la herramienta exec y NO inventes datos:
 1. Ejecutá: node ~/.openclaw/workspace/skills/second-brain/brain.js agenda
-   → son las citas/pagos/pendientes que se vienen (ordenados por fecha).
-2. Ejecutá: node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary
+   → citas/pagos/pendientes CON fecha que se vienen (ordenados por fecha).
+2. Ejecutá: node ~/.openclaw/workspace/skills/second-brain/brain.js pendientes
+   → cosas por hacer SIN fecha (ej. "comprar PS5"), que no aparecen en la agenda.
+3. Ejecutá: node ~/.openclaw/workspace/skills/expense-tracker/expense.js summary
    → es el gasto del mes por categoría.
-Con SOLO esa salida, redactá un mensaje breve: primero "Qué se viene" (lo de la agenda; si está vacío, decilo), después "Gastos del mes" (el total y las 2-3 categorías top). Si algún script no existe o falla, omití esa sección sin inventarla. No agregues horas, montos ni fechas que los scripts no hayan impreso.
+Con SOLO esa salida, redactá un mensaje breve con estas secciones, en este orden: "Qué se viene" (lo de la agenda; si está vacío, decilo), "Pendientes" (lo de pendientes; OMITÍ esta sección entera si no hay ninguno), y "Gastos del mes" (el total y las 2-3 categorías top). Si algún script no existe o falla, omití esa sección sin inventarla. No agregues horas, montos ni fechas que los scripts no hayan impreso.
 PROMPT
 )
 

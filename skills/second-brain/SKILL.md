@@ -55,9 +55,14 @@ node {baseDir}/brain.js <comando> [argumentos]
 | Guardar una idea/nota nueva | `node {baseDir}/brain.js new "<titulo>" --tags a,b --body "<texto>"` |
 | Guardar una **cita/turno con fecha** | `node {baseDir}/brain.js new "<titulo>" --tags cita --due "YYYY-MM-DD[ HH:MM]" --body "<detalle>"` |
 | Guardar un **pago/vencimiento** | `node {baseDir}/brain.js new "<titulo>" --tags pago --due "YYYY-MM-DD" --body "<detalle>"` |
+| Guardar un **pendiente SIN fecha** ("tengo que…", "quiero comprar…") | `node {baseDir}/brain.js new "<titulo>" --tags pendiente --body "<detalle>"` |
 | Nota de diario (con fecha) | `node {baseDir}/brain.js new "<titulo>" --daily --body "<texto>"` |
 | Agregar a una nota existente | `node {baseDir}/brain.js append "<titulo>" "<texto>"` |
-| **Qué se viene**: próximas citas/pagos/pendientes | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
+| **Qué se viene** (con fecha): próximas citas/pagos | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
+| **Pendientes SIN fecha** ("qué tengo que hacer") | `node {baseDir}/brain.js pendientes` |
+| **Marcar una nota como hecha** ("ya lo hice", "listo") | `node {baseDir}/brain.js done "<titulo>"` |
+| **Recordatorio que AVISA a una hora** ("recordame…", "avisame a las…") | `node {baseDir}/remind.js add "<texto>" --at "YYYY-MM-DD HH:MM"` |
+| Ver / cancelar recordatorios programados | `node {baseDir}/remind.js list`  ·  `node {baseDir}/remind.js rm <id>` |
 | Buscar algo que escribió antes | `node {baseDir}/brain.js search <texto>` |
 | Ver las últimas notas | `node {baseDir}/brain.js list 10` |
 | Leer una nota completa | `node {baseDir}/brain.js read "<titulo>"` |
@@ -75,9 +80,47 @@ un vencimiento, un pendiente para tal día), guardalo con `--due` y el tag corre
 (`cita` o `pago`). La fecha se calcula a partir de HOY (corré `date` si dudás del
 día) — ej.: "el 20 de julio a las 3pm" → `--due "2026-07-20 15:00"`.
 
-Para "cuáles son mis próximas citas", "qué pagos tengo", "qué tengo que hacer",
-"qué se viene": ejecutá `agenda` (o `agenda cita`/`agenda pago`). Devuelve solo lo
-de HOY en adelante, ordenado por fecha.
+Para "cuáles son mis próximas citas", "qué pagos tengo", "qué se viene": ejecutá
+`agenda` (con fecha) **y** `pendientes` (sin fecha). `agenda` devuelve solo lo de HOY
+en adelante ordenado por fecha; `pendientes` lista lo que anotaste como pendiente
+sin día fijo (ej. "comprar PS5").
+
+## Recordatorio vs. nota con fecha (NO confundir)
+
+Son dos cosas distintas:
+
+- **Nota con fecha** (`brain.js new --due …`): queda guardada y **aparece cuando el
+  usuario pregunta** "qué se viene". NO te busca sola.
+- **Recordatorio** (`remind.js add … --at …`): a la hora exacta le **llega un mensaje
+  al chat** sin que pregunte. Es lo que se pide con "recordame", "avisame a las…",
+  "ponme un recordatorio".
+
+Cuando el usuario pide que le **avises/recuerdes a una hora**, usá `remind.js add`:
+
+```
+node {baseDir}/remind.js add "<texto del recordatorio>" --at "YYYY-MM-DD HH:MM"
+```
+
+- La hora es **absoluta**. Si el usuario habla en relativo ("mañana a las 5", "en 2
+  horas"), primero corré `date '+%Y-%m-%d %H:%M %A'` y calculá la fecha/hora exacta.
+  Para "dentro de un rato" podés pasar una duración: `--at "+90m"` o `--at "+2h"`.
+- El mensaje que le va a llegar es **literal** (`⏰ Recordatorio: <texto>`). Poné en
+  `<texto>` lo que tiene que hacer, claro y completo ("comprar la ropa en Multiplaza").
+- **NO digas "te aviso" ni "programé un recordatorio" sin haber ejecutado el comando
+  y visto su `OK …`.** Antes esto se prometía en falso y el aviso llegaba vacío; ahora
+  el recordatorio es real solo si corriste `remind.js add` y viste el OK con su ID.
+
+## Marcar algo como hecho
+
+Cuando el usuario diga que **ya hizo/completó** algo que tenía anotado ("ya compré la
+PS5", "listo lo del dentista", "marcá como hecho X"), ejecutá:
+
+```
+node {baseDir}/brain.js done "<titulo>"
+```
+
+Deja de aparecer en `agenda` y en `pendientes`. Así el resumen diario no repite cosas
+que ya resolviste.
 
 ## Recuperar = ejecutar el script, NO inventar
 

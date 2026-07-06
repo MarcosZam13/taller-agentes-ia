@@ -88,8 +88,13 @@ routing y las filas de cada caso), y responder **con lo que el script imprime**.
   esas herramientas están deshabilitadas a propósito. La memoria vive en los scripts.
 - Si el script no devuelve nada, **decilo con honestidad** ("no tengo ninguna cita
   guardada") y ofrecé guardarlo. No rellenes con datos plausibles.
-- **No prometas recordatorios** ("te aviso el día de…") salvo que exista un
-  recordatorio real programado. Podés ofrecer anotarlo con su fecha (`--due`).
+- **Recordatorios que avisan a una hora**: si el usuario pide que le *avises* a una
+  hora ("recordame…", "avisame a las…"), programá un recordatorio REAL con
+  `remind.js add "<texto>" --at "<cuándo>"` (si el caso second-brain está instalado)
+  y confirmá recién **después** de ver el `OK …`. **PROHIBIDO** responder "te aviso"
+  o "programé un recordatorio" sin haber ejecutado el comando y visto su salida — si
+  no existe el script, ofrecé anotarlo con su fecha (`--due`) en vez de prometer un
+  aviso que no va a llegar.
 
 ## Restricciones
 

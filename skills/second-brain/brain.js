@@ -12,6 +12,8 @@
 //   node brain.js search <texto...>            # busca en título y contenido
 //   node brain.js list [n]                      # últimas n notas (default 10)
 //   node brain.js agenda [tag]                  # citas/pagos/pendientes futuros (por fecha --due)
+//   node brain.js pendientes                    # pendientes SIN fecha (todo/tarea/pendiente, no hechos)
+//   node brain.js done "<titulo|archivo>"       # marca una nota como hecha (sale de agenda/pendientes)
 //   node brain.js read "<titulo|archivo>"
 //   node brain.js link "<nota>" "<nota-destino>"   # agrega [[destino]] en Conexiones
 //   node brain.js tags                          # lista tags con conteo
@@ -178,11 +180,17 @@ function parseFront(content) {
   const fm = m ? m[1] : "";
   const tagsM = fm.match(/^tags:\s*\[(.*?)\]/m);
   const venceM = fm.match(/^vence:\s*(.+)$/m);
+  const estadoM = fm.match(/^estado:\s*(.+)$/m);
   return {
     tags: tagsM ? tagsM[1].split(",").map((t) => t.trim()).filter(Boolean) : [],
     vence: venceM ? venceM[1].trim() : null,
+    estado: estadoM ? estadoM[1].trim().toLowerCase() : null,
   };
 }
+
+// Tags que marcan un "pendiente" (algo por hacer), para `pendientes` y `agenda`.
+const TAGS_PENDIENTE = ["pendiente", "pendientes", "tarea", "tareas", "todo", "por-hacer"];
+const esHecho = (estado) => estado === "hecho" || estado === "listo" || estado === "done";
 
 // agenda [tag] — lista las notas con `vence:` cuya fecha es HOY o futura, ordenadas
 // por fecha ascendente. Es la vista de "qué se viene": citas, pagos, pendientes.
@@ -193,8 +201,9 @@ function cmdAgenda(args) {
   const hoyStr = hoy();
   const items = [];
   for (const n of listNotes()) {
-    const { tags, vence } = parseFront(readFileSync(n.path, "utf8"));
+    const { tags, vence, estado } = parseFront(readFileSync(n.path, "utf8"));
     if (!vence) continue;
+    if (esHecho(estado)) continue; // ya se hizo: no es "lo que se viene"
     if (tagFilter && !tags.map((t) => t.toLowerCase()).includes(tagFilter)) continue;
     const fechaVence = vence.slice(0, 10); // parte YYYY-MM-DD para comparar/ordenar
     if (!all && fechaVence < hoyStr) continue; // ya pasó
@@ -211,6 +220,57 @@ function cmdAgenda(args) {
     const tagStr = it.tags.length ? `  [${it.tags.join(", ")}]` : "";
     console.log(`${it.vence}  ${it.titulo}${tagStr}`);
   }
+}
+
+// pendientes — notas por hacer SIN fecha (`vence:` ausente) que NO están hechas y
+// llevan un tag de pendiente (pendiente/tarea/todo…). Es la lista de "cosas que
+// quiero/tengo que hacer pero sin día fijo" (ej. "comprar PS5"): no salen en
+// `agenda` (que pide fecha), así que se muestran aparte en el resumen diario.
+function cmdPendientes() {
+  const items = [];
+  for (const n of listNotes()) {
+    const { tags, vence, estado } = parseFront(readFileSync(n.path, "utf8"));
+    if (vence) continue;            // con fecha → es asunto de `agenda`
+    if (esHecho(estado)) continue;  // ya se hizo
+    const tl = tags.map((t) => t.toLowerCase());
+    if (!tl.some((t) => TAGS_PENDIENTE.includes(t))) continue;
+    items.push({ titulo: n.file.replace(/\.md$/, ""), tags, mtime: n.mtime });
+  }
+  items.sort((a, b) => b.mtime - a.mtime); // más recientes primero
+  if (items.length === 0) {
+    console.log("No hay pendientes sin fecha.");
+    return;
+  }
+  console.log(`Pendientes sin fecha — ${items.length}:`);
+  for (const it of items) {
+    const tagStr = it.tags.length ? `  [${it.tags.join(", ")}]` : "";
+    console.log(`- ${it.titulo}${tagStr}`);
+  }
+}
+
+// done — marca una nota como hecha (estado: hecho en el frontmatter). Deja de
+// aparecer en `agenda` y en `pendientes`. Idempotente.
+function cmdDone(args) {
+  const ref = args.join(" ").trim();
+  if (!ref) throw new Error('Uso: done "<titulo|archivo>"');
+  const note = resolveNote(ref);
+  if (!note) throw new Error(`No encontré ninguna nota que coincida con "${ref}".`);
+  let content = readFileSync(note.path, "utf8");
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (fmMatch) {
+    let fm = fmMatch[1];
+    if (/^estado:\s*.+$/m.test(fm)) {
+      fm = fm.replace(/^estado:\s*.+$/m, "estado: hecho");
+    } else {
+      fm = fm + "\nestado: hecho";
+    }
+    content = content.replace(/^---\n[\s\S]*?\n---/, `---\n${fm}\n---`);
+  } else {
+    // Nota sin frontmatter (rara): le anteponemos uno mínimo.
+    content = `---\nfecha: ${hoy()}\ntags: []\nestado: hecho\n---\n\n${content}`;
+  }
+  writeFileSync(note.path, content, "utf8");
+  console.log(`OK Marcada como hecha: ${note.file}`);
 }
 
 function cmdRead(args) {
@@ -267,11 +327,13 @@ try {
     case "search": cmdSearch(args); break;
     case "list": cmdList(args); break;
     case "agenda": cmdAgenda(args); break;
+    case "pendientes": cmdPendientes(); break;
+    case "done": cmdDone(args); break;
     case "read": cmdRead(args); break;
     case "link": cmdLink(args); break;
     case "tags": cmdTags(); break;
     default:
-      console.log("Comandos: new | append | search | list | agenda | read | link | tags");
+      console.log("Comandos: new | append | search | list | agenda | pendientes | done | read | link | tags");
       console.log(`Vault actual: ${VAULT}`);
       process.exit(cmd ? 1 : 0);
   }
