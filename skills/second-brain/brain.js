@@ -14,6 +14,7 @@
 //   node brain.js agenda [tag]                  # citas/pagos/pendientes futuros (por fecha --due)
 //   node brain.js pendientes                    # pendientes SIN fecha (todo/tarea/pendiente, no hechos)
 //   node brain.js done "<titulo|archivo>"       # marca una nota como hecha (sale de agenda/pendientes)
+//   node brain.js due "<titulo|archivo>" "<YYYY-MM-DD[ HH:MM]>"  # pone/cambia la fecha (reprograma)
 //   node brain.js read "<titulo|archivo>"
 //   node brain.js link "<nota>" "<nota-destino>"   # agrega [[destino]] en Conexiones
 //   node brain.js tags                          # lista tags con conteo
@@ -192,33 +193,45 @@ function parseFront(content) {
 const TAGS_PENDIENTE = ["pendiente", "pendientes", "tarea", "tareas", "todo", "por-hacer"];
 const esHecho = (estado) => estado === "hecho" || estado === "listo" || estado === "done";
 
-// agenda [tag] — lista las notas con `vence:` cuya fecha es HOY o futura, ordenadas
-// por fecha ascendente. Es la vista de "qué se viene": citas, pagos, pendientes.
-// Con un tag opcional filtra (ej. `agenda cita`). Con `--all` incluye las vencidas.
+// agenda [tag] — vista de todo lo que tiene fecha y sigue abierto (no marcado hecho):
+//   ⚠️ Atrasados: `vence:` ya pasó pero nunca se marcó `done` → sigue apareciendo
+//                 hasta que lo marques hecho o le pongas fecha nueva (`due`).
+//   Agenda:       `vence:` es HOY o futura ("lo que se viene").
+// Ordenadas por fecha. Un tag opcional filtra (ej. `agenda pago`). `--all` incluye
+// también las ya hechas.
 function cmdAgenda(args) {
-  const all = getBool(args, "all");
+  const all = getBool(args, "all"); // incluir también las marcadas hechas
   const tagFilter = (args[0] || "").trim().toLowerCase();
   const hoyStr = hoy();
-  const items = [];
+  const atrasados = [], proximos = [];
   for (const n of listNotes()) {
     const { tags, vence, estado } = parseFront(readFileSync(n.path, "utf8"));
     if (!vence) continue;
-    if (esHecho(estado)) continue; // ya se hizo: no es "lo que se viene"
+    if (!all && esHecho(estado)) continue; // ya se hizo → fuera (salvo --all)
     if (tagFilter && !tags.map((t) => t.toLowerCase()).includes(tagFilter)) continue;
     const fechaVence = vence.slice(0, 10); // parte YYYY-MM-DD para comparar/ordenar
-    if (!all && fechaVence < hoyStr) continue; // ya pasó
-    items.push({ vence, fechaVence, titulo: n.file.replace(/\.md$/, ""), tags });
+    const item = { vence, titulo: n.file.replace(/\.md$/, ""), tags };
+    (fechaVence < hoyStr ? atrasados : proximos).push(item);
   }
-  items.sort((a, b) => a.vence.localeCompare(b.vence));
+  const byFecha = (a, b) => a.vence.localeCompare(b.vence);
+  atrasados.sort(byFecha); proximos.sort(byFecha);
   const etiqueta = tagFilter ? ` (tag: ${tagFilter})` : "";
-  if (items.length === 0) {
-    console.log(`No hay nada agendado${etiqueta}${all ? "" : " de hoy en adelante"}.`);
+  const linea = (it) => `${it.vence}  ${it.titulo}${it.tags.length ? `  [${it.tags.join(", ")}]` : ""}`;
+
+  if (atrasados.length === 0 && proximos.length === 0) {
+    console.log(`No hay nada agendado${etiqueta} de hoy en adelante.`);
     return;
   }
-  console.log(`Agenda${etiqueta} — ${items.length} ítem(s):`);
-  for (const it of items) {
-    const tagStr = it.tags.length ? `  [${it.tags.join(", ")}]` : "";
-    console.log(`${it.vence}  ${it.titulo}${tagStr}`);
+  if (atrasados.length) {
+    console.log(`⚠️ Atrasados${etiqueta} — ${atrasados.length} (vencidos sin marcar hecho):`);
+    for (const it of atrasados) console.log(linea(it));
+    if (proximos.length) console.log("");
+  }
+  if (proximos.length) {
+    console.log(`Agenda${etiqueta} — ${proximos.length} ítem(s):`);
+    for (const it of proximos) console.log(linea(it));
+  } else if (atrasados.length) {
+    console.log(`\nNo hay nada agendado${etiqueta} de hoy en adelante.`);
   }
 }
 
@@ -271,6 +284,28 @@ function cmdDone(args) {
   }
   writeFileSync(note.path, content, "utf8");
   console.log(`OK Marcada como hecha: ${note.file}`);
+}
+
+// due — pone o cambia la fecha (`vence:`) de una nota. Sirve para reprogramar algo
+// atrasado ("moveme el pago para el 15") sin perder la nota, o para ponerle fecha a
+// un pendiente que no la tenía. Si además estaba marcada hecha, la reabre.
+function cmdDue(args) {
+  const nuevaFecha = getFlag(args, "due") || args[1] || "";
+  const ref = (args[0] || "").trim();
+  const fecha = String(nuevaFecha).trim();
+  if (!ref || !fecha) throw new Error('Uso: due "<titulo|archivo>" "YYYY-MM-DD[ HH:MM]"');
+  const note = resolveNote(ref);
+  if (!note) throw new Error(`No encontré ninguna nota que coincida con "${ref}".`);
+  let content = readFileSync(note.path, "utf8");
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!fmMatch) throw new Error(`La nota "${note.file}" no tiene frontmatter para ponerle fecha.`);
+  let fm = fmMatch[1];
+  fm = /^vence:\s*.+$/m.test(fm) ? fm.replace(/^vence:\s*.+$/m, `vence: ${fecha}`) : `${fm}\nvence: ${fecha}`;
+  // Al reprogramar, dejar de considerarla hecha (se vuelve a agendar).
+  fm = fm.replace(/^estado:\s*.+\n?/m, "");
+  content = content.replace(/^---\n[\s\S]*?\n---/, `---\n${fm.replace(/\n{2,}/g, "\n")}\n---`);
+  writeFileSync(note.path, content, "utf8");
+  console.log(`OK Reprogramada: ${note.file} → vence ${fecha}`);
 }
 
 function cmdRead(args) {
@@ -329,11 +364,12 @@ try {
     case "agenda": cmdAgenda(args); break;
     case "pendientes": cmdPendientes(); break;
     case "done": cmdDone(args); break;
+    case "due": cmdDue(args); break;
     case "read": cmdRead(args); break;
     case "link": cmdLink(args); break;
     case "tags": cmdTags(); break;
     default:
-      console.log("Comandos: new | append | search | list | agenda | pendientes | done | read | link | tags");
+      console.log("Comandos: new | append | search | list | agenda | pendientes | done | due | read | link | tags");
       console.log(`Vault actual: ${VAULT}`);
       process.exit(cmd ? 1 : 0);
   }

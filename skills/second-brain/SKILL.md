@@ -58,9 +58,10 @@ node {baseDir}/brain.js <comando> [argumentos]
 | Guardar un **pendiente SIN fecha** ("tengo que…", "quiero comprar…") | `node {baseDir}/brain.js new "<titulo>" --tags pendiente --body "<detalle>"` |
 | Nota de diario (con fecha) | `node {baseDir}/brain.js new "<titulo>" --daily --body "<texto>"` |
 | Agregar a una nota existente | `node {baseDir}/brain.js append "<titulo>" "<texto>"` |
-| **Qué se viene** (con fecha): próximas citas/pagos | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
+| **Qué se viene** (con fecha): citas/pagos + **⚠️ Atrasados** | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
 | **Pendientes SIN fecha** ("qué tengo que hacer") | `node {baseDir}/brain.js pendientes` |
 | **Marcar una nota como hecha** ("ya lo hice", "listo") | `node {baseDir}/brain.js done "<titulo>"` |
+| **Reprogramar / posponer** a otra fecha ("movelo al 15") | `node {baseDir}/brain.js due "<titulo>" "YYYY-MM-DD[ HH:MM]"` |
 | **Recordatorio que AVISA a una hora** ("recordame…", "avisame a las…") | `node {baseDir}/remind.js add "<texto>" --at "YYYY-MM-DD HH:MM"` |
 | Ver / cancelar recordatorios programados | `node {baseDir}/remind.js list`  ·  `node {baseDir}/remind.js rm <id>` |
 | Buscar algo que escribió antes | `node {baseDir}/brain.js search <texto>` |
@@ -81,9 +82,10 @@ un vencimiento, un pendiente para tal día), guardalo con `--due` y el tag corre
 día) — ej.: "el 20 de julio a las 3pm" → `--due "2026-07-20 15:00"`.
 
 Para "cuáles son mis próximas citas", "qué pagos tengo", "qué se viene": ejecutá
-`agenda` (con fecha) **y** `pendientes` (sin fecha). `agenda` devuelve solo lo de HOY
-en adelante ordenado por fecha; `pendientes` lista lo que anotaste como pendiente
-sin día fijo (ej. "comprar PS5").
+`agenda` (con fecha) **y** `pendientes` (sin fecha). `agenda` trae primero una sección
+**⚠️ Atrasados** (cosas con fecha ya vencida que **nunca se marcaron hechas** — siguen
+saliendo para que no las pierdas) y después la agenda de HOY en adelante; `pendientes`
+lista lo que anotaste como pendiente sin día fijo (ej. "comprar PS5").
 
 ## Recordatorio vs. nota con fecha (NO confundir)
 
@@ -119,8 +121,19 @@ PS5", "listo lo del dentista", "marcá como hecho X"), ejecutá:
 node {baseDir}/brain.js done "<titulo>"
 ```
 
-Deja de aparecer en `agenda` y en `pendientes`. Así el resumen diario no repite cosas
-que ya resolviste.
+Deja de aparecer en `agenda` (ni en ⚠️ Atrasados) y en `pendientes`. Así el resumen
+diario no repite cosas que ya resolviste.
+
+**Reprogramar en vez de dar por hecho:** si el usuario no lo hizo pero quiere **moverlo
+a otra fecha** ("pasá el pago para el 15", "movelo a mañana"), usá `due` en vez de
+`done`:
+
+```
+node {baseDir}/brain.js due "<titulo>" "YYYY-MM-DD[ HH:MM]"
+```
+
+Le cambia la fecha (sale de Atrasados y vuelve a la agenda con la fecha nueva). Calculá
+la fecha absoluta con `date` si el usuario habla en relativo.
 
 ## Recuperar = ejecutar el script, NO inventar
 
