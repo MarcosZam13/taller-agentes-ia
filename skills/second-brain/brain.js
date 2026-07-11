@@ -354,6 +354,19 @@ function cmdTags() {
   for (const [tag, count] of filas) console.log(`${String(count).padStart(3)}  #${tag}`);
 }
 
+// summary — el "resumen diario": junta `agenda` (con fecha + ⚠️ atrasados) y
+// `pendientes` (sin fecha) en una sola vista. Es lo que pide el usuario cuando
+// dice "generame el resumen diario / qué tengo hoy / qué hay pendiente". Ignora
+// a propósito cualquier flag extra (ej. `--mes`): el resumen es siempre el estado
+// abierto actual del vault, no un rango.
+function cmdSummary() {
+  console.log(`Resumen diario — ${hoy()}\n`);
+  console.log("— Agenda (con fecha) —");
+  cmdAgenda([]);
+  console.log("\n— Pendientes (sin fecha) —");
+  cmdPendientes();
+}
+
 const [cmd, ...args] = rawArgs;
 try {
   switch (cmd) {
@@ -363,13 +376,16 @@ try {
     case "list": cmdList(args); break;
     case "agenda": cmdAgenda(args); break;
     case "pendientes": cmdPendientes(); break;
+    case "summary":
+    case "resumen":
+    case "brief": cmdSummary(); break;
     case "done": cmdDone(args); break;
     case "due": cmdDue(args); break;
     case "read": cmdRead(args); break;
     case "link": cmdLink(args); break;
     case "tags": cmdTags(); break;
     default:
-      console.log("Comandos: new | append | search | list | agenda | pendientes | done | due | read | link | tags");
+      console.log("Comandos: new | append | search | list | agenda | pendientes | summary | done | due | read | link | tags");
       console.log(`Vault actual: ${VAULT}`);
       process.exit(cmd ? 1 : 0);
   }

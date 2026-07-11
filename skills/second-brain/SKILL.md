@@ -58,6 +58,7 @@ node {baseDir}/brain.js <comando> [argumentos]
 | Guardar un **pendiente SIN fecha** ("tengo que…", "quiero comprar…") | `node {baseDir}/brain.js new "<titulo>" --tags pendiente --body "<detalle>"` |
 | Nota de diario (con fecha) | `node {baseDir}/brain.js new "<titulo>" --daily --body "<texto>"` |
 | Agregar a una nota existente | `node {baseDir}/brain.js append "<titulo>" "<texto>"` |
+| **Resumen diario** ("generame el resumen", "qué tengo hoy", "qué hay pendiente") | `node {baseDir}/brain.js summary` |
 | **Qué se viene** (con fecha): citas/pagos + **⚠️ Atrasados** | `node {baseDir}/brain.js agenda` (o `agenda cita` / `agenda pago`) |
 | **Pendientes SIN fecha** ("qué tengo que hacer") | `node {baseDir}/brain.js pendientes` |
 | **Marcar una nota como hecha** ("ya lo hice", "listo") | `node {baseDir}/brain.js done "<titulo>"` |
@@ -82,7 +83,10 @@ un vencimiento, un pendiente para tal día), guardalo con `--due` y el tag corre
 día) — ej.: "el 20 de julio a las 3pm" → `--due "2026-07-20 15:00"`.
 
 Para "cuáles son mis próximas citas", "qué pagos tengo", "qué se viene": ejecutá
-`agenda` (con fecha) **y** `pendientes` (sin fecha). `agenda` trae primero una sección
+`summary` (el **resumen diario**: un solo comando que junta `agenda` +
+`pendientes`). No existe ningún otro subcomando: NO inventes `summary --mes`,
+`report`, `daily` ni flags de rango — `summary` a secas ya trae todo el estado
+abierto. Por dentro `summary` corre `agenda` (con fecha) **y** `pendientes` (sin fecha). `agenda` trae primero una sección
 **⚠️ Atrasados** (cosas con fecha ya vencida que **nunca se marcaron hechas** — siguen
 saliendo para que no las pierdas) y después la agenda de HOY en adelante; `pendientes`
 lista lo que anotaste como pendiente sin día fijo (ej. "comprar PS5").
