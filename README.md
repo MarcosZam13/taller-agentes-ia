@@ -181,7 +181,6 @@ taller-agentes-ia/
 ├── GUIA-PARTICIPANTE.md    # Guía simple para asistentes (instalación local)
 ├── GUIA-CREAR-AGENTES.md   # Cómo crear/modificar agentes: personalidad, tools, skills
 ├── INSTALL.md              # Instalación detallada + servidor Pi / Cloudflare / Vercel
-├── TALLER.md               # Guía del facilitador con agenda y troubleshooting
 ├── AGENTS.md               # Instrucciones base del agente (workspace)
 ├── .env.example            # Template de variables de entorno
 ├── config/
@@ -228,7 +227,7 @@ taller-agentes-ia/
 | Error 429 (rate limit) | Esperar 60s y reintentar |
 | Dashboard pide token | Usar `bash setup/open-dashboard.sh` en lugar de abrir directo |
 
-Para más detalle: [`INSTALL.md`](INSTALL.md) y [`TALLER.md`](TALLER.md).
+Para más detalle: [`INSTALL.md`](INSTALL.md) y la [Guía para crear agentes](GUIA-CREAR-AGENTES.md).
 
 ---
 
@@ -237,4 +236,3 @@ Para más detalle: [`INSTALL.md`](INSTALL.md) y [`TALLER.md`](TALLER.md).
 - [Documentación OpenClaw](https://docs.openclaw.ai)
 - [ClawHub — Skills y plugins](https://clawhub.ai)
 - [OpenRouter — API keys](https://openrouter.ai)
-- [Guía del facilitador](TALLER.md)
