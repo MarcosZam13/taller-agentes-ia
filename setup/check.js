@@ -117,13 +117,13 @@ check(
   "Configurar OPENROUTER_API_KEY (recomendado) en .env"
 );
 
-if (hasGroq) {
-  console.log(ok(`  Groq key: ${"*".repeat(8)}${groqKey.slice(-4)}`));
-} else {
-  checkWarn("Groq: no configurado (recomendado para el taller)", false, "https://groq.com → API Keys");
-}
+// El taller usa OpenRouter (gpt-4o-mini). Groq y Azure quedan como alternativas:
+// solo mostramos la key que el participante realmente configuró, sin exigir Groq.
 if (hasOpenRouter) {
   console.log(ok(`  OpenRouter key: ${"*".repeat(8)}${openrouterKey.slice(-4)}`));
+}
+if (hasGroq) {
+  console.log(ok(`  Groq key (alternativa): ${"*".repeat(8)}${groqKey.slice(-4)}`));
 }
 if (hasAzure) {
   console.log(ok(`  Azure endpoint: ${azureEndpoint.substring(0, 40)}...`));
