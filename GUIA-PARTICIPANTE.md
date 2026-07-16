@@ -8,6 +8,10 @@ computadora**, respondiéndote por Telegram con un modelo de OpenRouter (gpt-4o-
 🌐 **El agente corre en tu máquina.** No montás servidores ni dominios; solo el
 modelo de IA vive en la nube (OpenRouter) y se consulta por API.
 
+> 🖥️ **¿Nunca usaste una terminal (la "consola")?** Leé primero la
+> **[Guía: La terminal sin miedo](GUIA-CONSOLA.md)** (10 min): cómo abrirla, copiar y
+> pegar, y moverte por las carpetas. Después volvé acá y seguí el paso a paso.
+
 ---
 
 ## Antes de empezar — conseguí estas 3 cosas
