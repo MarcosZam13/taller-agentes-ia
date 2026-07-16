@@ -54,11 +54,11 @@ USING_NVM=false
 [[ -n "${NVM_DIR:-}" || -d "$HOME/.nvm" ]] && USING_NVM=true
 
 if $IS_WINDOWS || $USING_NVM; then
-  # Auto-sanar un prefix personalizado que una corrida vieja pudo dejar y que
-  # rompe nvm o el PATH de Windows.
+  # Auto-sanar un prefix personalizado que una corrida vieja (o el paso de PowerShell
+  # de la guía) pudo dejar, y que rompe nvm o saca a openclaw del PATH en Windows.
   CUR_PREFIX=$(npm config get prefix 2>/dev/null || true)
-  if $USING_NVM && [[ "$CUR_PREFIX" == *".npm-global"* ]]; then
-    warn "nvm detectado con prefix personalizado ('$CUR_PREFIX') que lo rompe. Quitándolo..."
+  if [[ "$CUR_PREFIX" == *".npm-global"* ]]; then
+    warn "Prefix personalizado ('$CUR_PREFIX') que rompe $( $IS_WINDOWS && echo 'el PATH de Windows' || echo 'nvm' ). Quitándolo..."
     npm config delete prefix 2>/dev/null || true
   fi
   info "npm: usando el prefix por defecto ($( $IS_WINDOWS && echo 'Windows' || echo 'nvm' ) ya deja openclaw en el PATH)"
