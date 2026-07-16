@@ -276,6 +276,73 @@ Meta: agregar `top` a finanzas → "¿en qué categoría gasto más?".
 
 5. Probá en el chat: *"¿en qué se me va la plata?"* → el agente corre `expense.js top`.
 
+### 🧩 El mismo ejercicio, para los otros casos
+
+Todos los casos funcionan igual: el motor `.js` tiene un `switch` de comandos. Agregar uno
+es **siempre el mismo ciclo**: escribís la función → la sumás al `switch` → la probás a
+mano → agregás la fila de routing (en `SKILL.md` **y** en `install-case.mjs`) → reinstalás
+el caso (pasos 3–4 de arriba). Elegí el de **tu** caso:
+
+<details>
+<summary><b>🧠 second-brain — comando <code>stats</code> (resumen del vault)</b></summary>
+
+En `skills/second-brain/brain.js`, **antes** de `const [cmd, ...args] = rawArgs;`:
+```js
+function cmdStats() {
+  const notes = listNotes();
+  let agendadas = 0, pendientes = 0, hechas = 0;
+  for (const n of notes) {
+    const { tags, vence, estado } = parseFront(readFileSync(n.path, "utf8"));
+    if (esHecho(estado)) hechas++;
+    else if (vence) agendadas++;
+    else if (tags.map((t) => t.toLowerCase()).some((t) => TAGS_PENDIENTE.includes(t))) pendientes++;
+  }
+  console.log(`OK ${notes.length} nota(s): ${agendadas} agendada(s), ${pendientes} pendiente(s) sin fecha, ${hechas} hecha(s).`);
+}
+```
+Sumá al `switch`: `case "stats": cmdStats(); break;`
+Probalo: `node skills/second-brain/brain.js stats`
+Fila de routing: *"pregunta **cuántas notas tiene / un resumen del cerebro**" → `node ~/.openclaw/workspace/skills/second-brain/brain.js stats`*
+</details>
+
+<details>
+<summary><b>📄 pdf-extractor — comando <code>count</code> (cuánto texto tiene el PDF)</b></summary>
+
+En `skills/pdf-extractor/pdf.js`, **antes** de `const [cmd, ...args] = process.argv.slice(2);`:
+```js
+function cmdCount(args) {
+  const pdf = requirePdf(args[0]);
+  const text = runTool("pdftotext", ["-layout", pdf, "-"]);
+  const palabras = (text.match(/\S+/g) || []).length;
+  const lineas = text.split("\n").filter((l) => l.trim()).length;
+  console.log(`OK El PDF tiene ${palabras} palabras y ${lineas} líneas con texto.`);
+}
+```
+Sumá al `switch`: `case "count": cmdCount(args); break;`
+Probalo: `node skills/pdf-extractor/pdf.js count <ruta_a_un.pdf>`
+Fila de routing: *"pregunta **cuánto texto/cuántas palabras tiene un PDF**" → `node ~/.openclaw/workspace/skills/pdf-extractor/pdf.js count <ruta_pdf>`*
+</details>
+
+<details>
+<summary><b>🐍 dev-assistant — comando <code>calc</code> (cálculo rápido en Python)</b></summary>
+
+En `skills/dev-assistant/runpy.js`, **antes** de `const [cmd, ...args] = process.argv.slice(2);`:
+```js
+function cmdCalc(args) {
+  const timeout = getFlag(args, "timeout");
+  const expr = args.join(" ").trim();
+  if (!expr) throw new Error("Uso: calc <expresión>  (ej: calc 2**10)");
+  return frame(PY, ["-c", `print(${expr})`], timeout);
+}
+```
+Sumá al `switch`: `case "calc": code = cmdCalc(args); break;`  *(ojo: acá el switch usa `code = …`)*
+Probalo: `node skills/dev-assistant/runpy.js calc "2**10"` → `1024`
+Fila de routing: *"pide un **cálculo rápido** (\"cuánto es 2 a la 10\")" → `node ~/.openclaw/workspace/skills/dev-assistant/runpy.js calc <expresión>`*
+</details>
+
+> 💡 Los 4 ejemplos están **probados**: copiás la función, la sumás al `switch`, y el motor
+> responde con una línea `OK …`. La diferencia entre casos es solo *qué* calcula la función.
+
 ### 🏆 Reto — Adaptá finanzas a tu país: colones (₡) → dólares (US$) (20 min)
 
 El caso de finanzas viene en **colones (₡)** porque así lo usa el facilitador, pero el
