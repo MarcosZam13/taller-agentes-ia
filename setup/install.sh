@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# install.sh — Instala OpenClaw en Linux (probado en CachyOS/Arch)
+# install.sh — Instala OpenClaw (Linux, macOS y Windows vía Git Bash)
 # Uso: bash setup/install.sh
+# Requiere Node >= 22.22.3 (lo exige openclaw). Detecta nvm/fnm y no pelea con ellos.
 set -euo pipefail
 
 OPENCLAW_CONFIG_DIR="$HOME/.openclaw"
@@ -11,52 +12,87 @@ info()  { echo -e "${GREEN}[+]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
-# 1. Verificar Node 22+
-NODE_MAJOR=$(node --version 2>/dev/null | sed 's/v\([0-9]*\).*/\1/')
-if [[ -z "$NODE_MAJOR" ]]; then
-  error "Node.js no encontrado. Instalar con: curl -fsSL https://fnm.vercel.app/install | bash"
-fi
-if [[ "$NODE_MAJOR" -lt 22 ]]; then
-  error "Se requiere Node 22+. Versión actual: $(node --version)"
-fi
-info "Node.js $(node --version) OK"
+# 1. Verificar Node (openclaw exige >= 22.22.3; NO basta un "22.x" cualquiera)
+MIN_NODE="22.22.3"
+NODE_VER=$(node --version 2>/dev/null | sed 's/^v//')
 
-# 2. Verificar/configurar npm prefix (evita EACCES en Linux)
-CURRENT_PREFIX=$(npm config get prefix 2>/dev/null)
-EXPECTED_PREFIX="$HOME/.npm-global"
-if [[ "$CURRENT_PREFIX" != "$EXPECTED_PREFIX" ]]; then
-  warn "npm prefix en '$CURRENT_PREFIX'. Configurando $EXPECTED_PREFIX ..."
-  mkdir -p "$EXPECTED_PREFIX"
-  npm config set prefix "$EXPECTED_PREFIX"
-fi
-
-# En Windows (Git Bash/MSYS) npm deja los ejecutables en la RAÍZ del prefix;
-# en Linux/macOS los deja en <prefix>/bin.
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) NPM_BIN="$EXPECTED_PREFIX" ;;
-  *)                    NPM_BIN="$EXPECTED_PREFIX/bin" ;;
-esac
-
-# Persistir el PATH en el rc del shell del usuario (bash o zsh). Sin esto, openclaw
-# se instala pero las terminales nuevas no lo ven, y check.js diría "openclaw no
-# instalado" aunque SÍ esté instalado (causa raíz del bucle install → check → install).
-PATH_LINE="export PATH=\"$NPM_BIN:\$PATH\""
-persist_path() {
-  local rc="$1"
-  [[ -z "$rc" ]] && return
-  if [[ ! -f "$rc" ]] || ! grep -qF "$NPM_BIN" "$rc" 2>/dev/null; then
-    printf '\n# Taller Agentes IA — PATH de npm global (openclaw)\n%s\n' "$PATH_LINE" >> "$rc"
-    info "PATH de openclaw agregado a $rc"
+# Sugerencia de instalación según el gestor de versiones que tenga el usuario.
+# (nvm es una función del shell: se detecta por NVM_DIR o ~/.nvm, no con command -v.)
+node_install_hint() {
+  if [[ -n "${NVM_DIR:-}" || -d "$HOME/.nvm" ]]; then
+    echo "Tenés nvm →  nvm install 22 && nvm alias default 22 && nvm use 22"
+  elif [[ -n "${FNM_DIR:-}" || -d "$HOME/.fnm" || -d "$HOME/.local/share/fnm" ]] || command -v fnm &>/dev/null; then
+    echo "Tenés fnm →  fnm install 22 && fnm use 22 && fnm default 22"
+  else
+    echo "Instalá Node 22 LTS desde https://nodejs.org  (o fnm: curl -fsSL https://fnm.vercel.app/install | bash)"
   fi
 }
-case "$(basename "${SHELL:-bash}")" in
-  zsh)  SHELL_RC="$HOME/.zshrc";  persist_path "$SHELL_RC" ;;
-  bash) SHELL_RC="$HOME/.bashrc"; persist_path "$SHELL_RC" ;;
-  *)    SHELL_RC="$HOME/.bashrc"; persist_path "$HOME/.bashrc"; persist_path "$HOME/.zshrc" ;;
-esac
 
-export PATH="$NPM_BIN:$PATH"
-info "npm prefix: $EXPECTED_PREFIX (bin: $NPM_BIN) OK"
+if [[ -z "$NODE_VER" ]]; then
+  error "Node.js no encontrado.
+    $(node_install_hint)"
+fi
+# ¿NODE_VER >= MIN_NODE? El menor de ambos (sort -V) debe ser MIN_NODE.
+if [[ "$(printf '%s\n%s\n' "$MIN_NODE" "$NODE_VER" | sort -V | head -n1)" != "$MIN_NODE" ]]; then
+  error "Node v$NODE_VER es muy viejo. openclaw requiere Node >= $MIN_NODE.
+    $(node_install_hint)
+    Luego REABRÍ la terminal y volvé a correr: bash setup/install.sh"
+fi
+info "Node.js v$NODE_VER OK (>= $MIN_NODE)"
+
+# 2. npm prefix / PATH — depende del sistema y del gestor de node:
+#   • Windows (Git Bash): el instalador de Node YA deja el bin global de npm en el
+#     PATH. Personalizar el prefix rompe justo eso → openclaw queda fuera del PATH
+#     (check.js diría "openclaw no instalado" aunque sí esté).
+#   • nvm: maneja su propio prefix por versión; 'npm config set prefix' lo ROMPE
+#     (aviso "nvm use --delete-prefix ...").
+#   • Linux/macOS sin nvm: personalizar el prefix evita EACCES y hay que persistir
+#     el PATH en el rc del shell (bash o zsh).
+IS_WINDOWS=false
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=true ;; esac
+USING_NVM=false
+[[ -n "${NVM_DIR:-}" || -d "$HOME/.nvm" ]] && USING_NVM=true
+
+if $IS_WINDOWS || $USING_NVM; then
+  # Auto-sanar un prefix personalizado que una corrida vieja pudo dejar y que
+  # rompe nvm o el PATH de Windows.
+  CUR_PREFIX=$(npm config get prefix 2>/dev/null || true)
+  if $USING_NVM && [[ "$CUR_PREFIX" == *".npm-global"* ]]; then
+    warn "nvm detectado con prefix personalizado ('$CUR_PREFIX') que lo rompe. Quitándolo..."
+    npm config delete prefix 2>/dev/null || true
+  fi
+  info "npm: usando el prefix por defecto ($( $IS_WINDOWS && echo 'Windows' || echo 'nvm' ) ya deja openclaw en el PATH)"
+else
+  # Linux/macOS sin nvm
+  EXPECTED_PREFIX="$HOME/.npm-global"
+  CURRENT_PREFIX=$(npm config get prefix 2>/dev/null || true)
+  if [[ "$CURRENT_PREFIX" != "$EXPECTED_PREFIX" ]]; then
+    warn "npm prefix en '$CURRENT_PREFIX'. Configurando $EXPECTED_PREFIX ..."
+    mkdir -p "$EXPECTED_PREFIX"
+    npm config set prefix "$EXPECTED_PREFIX"
+  fi
+  NPM_BIN="$EXPECTED_PREFIX/bin"
+
+  # Persistir el PATH en el rc del shell (bash o zsh). Sin esto, openclaw se instala
+  # pero las terminales nuevas no lo ven, y check.js diría "openclaw no instalado".
+  PATH_LINE="export PATH=\"$NPM_BIN:\$PATH\""
+  persist_path() {
+    local rc="$1"
+    [[ -z "$rc" ]] && return
+    if [[ ! -f "$rc" ]] || ! grep -qF "$NPM_BIN" "$rc" 2>/dev/null; then
+      printf '\n# Taller Agentes IA — PATH de npm global (openclaw)\n%s\n' "$PATH_LINE" >> "$rc"
+      info "PATH de openclaw agregado a $rc"
+    fi
+  }
+  case "$(basename "${SHELL:-bash}")" in
+    zsh)  SHELL_RC="$HOME/.zshrc";  persist_path "$SHELL_RC" ;;
+    bash) SHELL_RC="$HOME/.bashrc"; persist_path "$SHELL_RC" ;;
+    *)    SHELL_RC="$HOME/.bashrc"; persist_path "$HOME/.bashrc"; persist_path "$HOME/.zshrc" ;;
+  esac
+
+  export PATH="$NPM_BIN:$PATH"
+  info "npm prefix: $EXPECTED_PREFIX (bin: $NPM_BIN) OK"
+fi
 
 # 3. Instalar OpenClaw
 if command -v openclaw &>/dev/null; then
