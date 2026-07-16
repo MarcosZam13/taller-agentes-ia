@@ -28,14 +28,35 @@ if [[ "$CURRENT_PREFIX" != "$EXPECTED_PREFIX" ]]; then
   warn "npm prefix en '$CURRENT_PREFIX'. Configurando $EXPECTED_PREFIX ..."
   mkdir -p "$EXPECTED_PREFIX"
   npm config set prefix "$EXPECTED_PREFIX"
-  # Agregar al PATH si no está
-  if ! echo "$PATH" | grep -q "$EXPECTED_PREFIX/bin"; then
-    warn "Agregar esto a ~/.bashrc o ~/.zshrc:"
-    warn "  export PATH=\"\$HOME/.npm-global/bin:\$PATH\""
-  fi
 fi
-export PATH="$EXPECTED_PREFIX/bin:$PATH"
-info "npm prefix: $EXPECTED_PREFIX OK"
+
+# En Windows (Git Bash/MSYS) npm deja los ejecutables en la RAÍZ del prefix;
+# en Linux/macOS los deja en <prefix>/bin.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) NPM_BIN="$EXPECTED_PREFIX" ;;
+  *)                    NPM_BIN="$EXPECTED_PREFIX/bin" ;;
+esac
+
+# Persistir el PATH en el rc del shell del usuario (bash o zsh). Sin esto, openclaw
+# se instala pero las terminales nuevas no lo ven, y check.js diría "openclaw no
+# instalado" aunque SÍ esté instalado (causa raíz del bucle install → check → install).
+PATH_LINE="export PATH=\"$NPM_BIN:\$PATH\""
+persist_path() {
+  local rc="$1"
+  [[ -z "$rc" ]] && return
+  if [[ ! -f "$rc" ]] || ! grep -qF "$NPM_BIN" "$rc" 2>/dev/null; then
+    printf '\n# Taller Agentes IA — PATH de npm global (openclaw)\n%s\n' "$PATH_LINE" >> "$rc"
+    info "PATH de openclaw agregado a $rc"
+  fi
+}
+case "$(basename "${SHELL:-bash}")" in
+  zsh)  SHELL_RC="$HOME/.zshrc";  persist_path "$SHELL_RC" ;;
+  bash) SHELL_RC="$HOME/.bashrc"; persist_path "$SHELL_RC" ;;
+  *)    SHELL_RC="$HOME/.bashrc"; persist_path "$HOME/.bashrc"; persist_path "$HOME/.zshrc" ;;
+esac
+
+export PATH="$NPM_BIN:$PATH"
+info "npm prefix: $EXPECTED_PREFIX (bin: $NPM_BIN) OK"
 
 # 3. Instalar OpenClaw
 if command -v openclaw &>/dev/null; then
@@ -140,6 +161,10 @@ fi
 
 echo ""
 info "=== Instalación completa — tenés un CHATBOT funcional (sin herramientas) ==="
+echo ""
+warn "IMPORTANTE: reabrí la terminal (o corré 'source ${SHELL_RC:-~/.bashrc}') para que"
+warn "el comando 'openclaw' quede disponible. Recién DESPUÉS corré: node setup/check.js"
+echo ""
 echo "  Probá el chatbot:  abrí Telegram o http://127.0.0.1:18789 y conversá"
 echo ""
 echo "  Para darle herramientas, instalá uno o más casos:"
