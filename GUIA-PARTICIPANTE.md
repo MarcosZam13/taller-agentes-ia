@@ -220,6 +220,29 @@ Algunos avisan si falta un programa (`pdf-extractor` necesita `poppler`/`pdftote
 
 ---
 
+## 🔌 El gateway (el motor del bot): encender, apagar y auto-arranque
+
+El instalador deja el **gateway** corriendo y configurado para **arrancar solo cada
+vez que iniciás sesión** en tu compu. Es lo que mantiene tu bot escuchando en Telegram
+sin que tengas que hacer nada.
+
+| Querés… | Comando |
+|---|---|
+| Ver si está corriendo | `openclaw gateway status` |
+| Apagarlo ahora | `openclaw gateway stop` |
+| Encenderlo | `openclaw gateway start` |
+| Que **no** arranque solo nunca más | `openclaw gateway uninstall` |
+
+`openclaw gateway uninstall` **no borra tu agente** — tu config y datos en `~/.openclaw`
+quedan intactos; solo quita el auto-arranque. Cuando quieras usar el bot de nuevo,
+`openclaw gateway start` (o `openclaw gateway run` para una corrida en primer plano que
+se apaga al cerrar la terminal).
+
+> 🪟 En Windows también podés desactivar la tarea sin borrarla:
+> `schtasks /Change /TN "OpenClaw Gateway" /DISABLE` (y `/ENABLE` para reactivarla).
+
+---
+
 ## 🔧 Si algo falla
 
 | Problema | Causa | Solución |
