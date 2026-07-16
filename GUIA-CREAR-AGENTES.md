@@ -81,6 +81,27 @@ taller-agentes-ia/
 Cuando cambiás algo en el workspace o en la config, **el gateway recarga solo**
 (*hybrid reload*). No hace falta reiniciar nada.
 
+### 🗺️ Mapa rápido: ¿dónde edito, dónde ejecuto, dónde vive?
+
+Esta es **la confusión #1**. La regla es una sola: **todo lo tuyo lo editás en el repo**;
+un instalador lo **copia** al workspace (`~/.openclaw`), que es de donde el agente lee.
+
+| Lo que querés hacer | Desde dónde / con qué | Ruta que usás |
+|---|---|---|
+| **Editar** el motor `.js` o el `SKILL.md` | en el **repo** | `skills/<skill>/…` |
+| **Probar el motor** solo (sin agente) | desde el **repo** | `node skills/<skill>/<motor>.js <cmd>` |
+| **Activar / empaquetar** el caso | desde el **repo** | `bash casos/<caso>/install.sh` |
+| Lo que el **agente** ejecuta (filas de routing) | lo copia el instalador | `~/.openclaw/workspace/skills/<skill>/…` |
+
+> ⚠️ **El mismo archivo tiene dos rutas — no te confundas:** cuando *probás* el motor a
+> mano usás la ruta del **repo**:
+> `node skills/expense-tracker/expense.js top`
+> …pero en las **filas de routing** (dentro de `SKILL.md` y de `install-case.mjs`) escribís
+> la ruta del **workspace**:
+> `node ~/.openclaw/workspace/skills/expense-tracker/expense.js top`
+> Es el **mismo archivo**: vos editás en el repo, y el instalador lo copia al workspace,
+> que es desde donde el agente lo corre. Por eso el routing apunta al workspace.
+
 ---
 
 ## 3. La PERSONALIDAD — `AGENTS.md`
