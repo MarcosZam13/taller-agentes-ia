@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, cpSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dir, "..");
@@ -129,11 +129,26 @@ if (!config.agents?.defaults) {
 console.log(`\n=== Instalando caso: ${caso} (${spec.label}) ===\n`);
 
 // ── 1. Verificar binarios requeridos ──────────────────────────────────────────
-for (const req of spec.requires) {
+// Cross-platform: en Windows no existe `command -v` ni /bin/bash → usa `where`.
+// Antes forzaba shell:"/bin/bash" y daba un falso "falta pdftotext/python3" en
+// Windows (el spawn de /bin/bash fallaba) aunque el binario SÍ estuviera instalado.
+const hasBinary = (bin) => {
   try {
-    execSync(`command -v ${req.bin}`, { stdio: "ignore", shell: "/bin/bash" });
-    info(`Dependencia OK: ${req.bin}`);
+    if (process.platform === "win32") {
+      execFileSync("where", [bin], { stdio: "ignore" });
+    } else {
+      // `command -v` es builtin de sh; bin va como $1, no se interpola → sin inyección.
+      execFileSync("sh", ["-c", 'command -v "$1"', "sh", bin], { stdio: "ignore" });
+    }
+    return true;
   } catch {
+    return false;
+  }
+};
+for (const req of spec.requires) {
+  if (hasBinary(req.bin)) {
+    info(`Dependencia OK: ${req.bin}`);
+  } else {
     warn(`Falta "${req.bin}" — el caso lo necesita. ${req.hint}`);
     warn(`Podés continuar e instalarlo después; el caso fallará hasta tenerlo.`);
   }

@@ -32,22 +32,25 @@ Write-Host ""
 Write-Host "=== Taller Agentes IA — Instalación Windows ===" -ForegroundColor Cyan
 Write-Host ""
 
-# ── 1. Verificar Node.js 22+ ──────────────────────────────────────────────────
-$nodeOk = $false
-try {
-  $nodeVer = (node --version 2>$null).TrimStart("v")
-  $nodeMajor = [int]($nodeVer -split "\.")[0]
-  if ($nodeMajor -ge 22) {
-    ok "Node.js v$nodeVer encontrado"
-    $nodeOk = $true
-  } else {
-    warn "Node.js v$nodeVer es muy viejo (se requiere 22+). Actualizando..."
-  }
-} catch {
-  warn "Node.js no encontrado."
+# ── 1. Verificar Node.js (openclaw exige >= 22.22.3, NO basta un "22.x") ───────
+$MIN_NODE = [version]"22.22.3"
+function Get-NodeVersion {
+  try {
+    $raw = (node --version 2>$null)
+    if (-not $raw) { return $null }
+    return [version]($raw.TrimStart("v"))
+  } catch { return $null }
 }
 
-if (-not $nodeOk -and -not $SkipNodeInstall) {
+$nodeVer = Get-NodeVersion
+if ($nodeVer -and $nodeVer -ge $MIN_NODE) {
+  ok "Node.js v$nodeVer OK (>= $MIN_NODE)"
+} elseif ($SkipNodeInstall) {
+  if ($nodeVer) { err "Node.js v$nodeVer es muy viejo; se requiere >= $MIN_NODE (y -SkipNodeInstall está activo)." }
+  else          { err "Node.js no encontrado; se requiere >= $MIN_NODE (y -SkipNodeInstall está activo)." }
+} else {
+  if ($nodeVer) { warn "Node.js v$nodeVer es muy viejo (se requiere >= $MIN_NODE). Actualizando..." }
+  else          { warn "Node.js no encontrado. Instalando..." }
   # Intentar instalar via winget (disponible en Windows 11 y Win10 actualizado)
   $wingetOk = $null -ne (Get-Command winget -ErrorAction SilentlyContinue)
   if ($wingetOk) {
@@ -58,38 +61,34 @@ if (-not $nodeOk -and -not $SkipNodeInstall) {
                 [System.Environment]::GetEnvironmentVariable("Path","User")
     ok "Node.js instalado. Reiniciar PowerShell si los comandos siguen sin encontrarse."
   } else {
-    err "winget no disponible. Instalar Node.js 22 manualmente desde https://nodejs.org y volver a ejecutar este script."
+    err "winget no disponible. Instalá Node.js 22 (>= $MIN_NODE) desde https://nodejs.org y volvé a ejecutar este script."
   }
-}
-
-# Verificar de nuevo
-try {
-  $nodeVer = (node --version 2>$null).TrimStart("v")
-  $nodeMajor = [int]($nodeVer -split "\.")[0]
-  if ($nodeMajor -lt 22) { err "Node.js $nodeVer instalado pero se necesita 22+." }
+  # Verificar de nuevo
+  $nodeVer = Get-NodeVersion
+  if (-not $nodeVer)          { err "node no encontrado en PATH. Reiniciá PowerShell e intentá de nuevo." }
+  if ($nodeVer -lt $MIN_NODE) { err "Node.js v$nodeVer instalado pero se necesita >= $MIN_NODE." }
   ok "Node.js v$nodeVer listo"
-} catch {
-  err "node no encontrado en PATH. Reiniciar PowerShell e intentar de nuevo."
 }
 
-# ── 2. Configurar npm prefix sin admin ───────────────────────────────────────
-$npmGlobal = "$env:USERPROFILE\.npm-global"
-$currentPrefix = (npm config get prefix 2>$null).Trim()
-if ($currentPrefix -ne $npmGlobal) {
-  warn "Configurando npm prefix a $npmGlobal (evita errores de permisos)..."
-  New-Item -ItemType Directory -Force -Path $npmGlobal | Out-Null
-  npm config set prefix $npmGlobal
-
-  # Agregar al PATH del usuario permanentemente
-  $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-  $binPath = "$npmGlobal\bin"
-  if ($userPath -notlike "*$binPath*") {
-    [Environment]::SetEnvironmentVariable("PATH", "$userPath;$binPath", "User")
-    $env:Path = "$env:Path;$binPath"
-    warn "PATH actualizado. Si 'openclaw' no se encuentra después, reiniciar PowerShell."
-  }
+# ── 2. npm: usar el prefix por DEFECTO (ya está en el PATH del instalador de Node) ─
+# En Windows npm deja los ejecutables globales en la RAÍZ del prefix por defecto
+# (%AppData%\npm), que el instalador de Node ya agrega al PATH. Personalizar el prefix
+# —o agregarle "\bin"— saca a openclaw del PATH (falso "openclaw no instalado"). Si una
+# corrida vieja dejó un prefix ~/.npm-global, lo revertimos al valor por defecto.
+$currentPrefix = (npm config get prefix 2>$null)
+if ($currentPrefix -and $currentPrefix -like "*.npm-global*") {
+  warn "Revirtiendo prefix personalizado de npm ($($currentPrefix.Trim())) al valor por defecto..."
+  npm config delete prefix 2>$null | Out-Null
 }
-ok "npm prefix: $npmGlobal"
+# Asegurar que el bin global por defecto (%AppData%\npm) esté en el PATH del usuario.
+$npmDefault = Join-Path $env:APPDATA "npm"
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*$npmDefault*") {
+  [Environment]::SetEnvironmentVariable("PATH", "$userPath;$npmDefault", "User")
+  warn "Agregado $npmDefault al PATH del usuario (reiniciá PowerShell si openclaw no aparece)."
+}
+if ($env:Path -notlike "*$npmDefault*") { $env:Path = "$env:Path;$npmDefault" }
+ok "npm: usando prefix por defecto; bin global en $npmDefault"
 
 # ── 3. Instalar openclaw ──────────────────────────────────────────────────────
 $openclawOk = $null -ne (Get-Command openclaw -ErrorAction SilentlyContinue)
@@ -100,8 +99,9 @@ if ($openclawOk) {
 ok "Instalando openclaw@latest..."
 npm install -g openclaw@latest
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
-            [System.Environment]::GetEnvironmentVariable("Path","User") + ";$npmGlobal\bin"
-ok "OpenClaw $(openclaw --version) instalado"
+            [System.Environment]::GetEnvironmentVariable("Path","User") + ";$npmDefault"
+try   { ok "OpenClaw $(openclaw --version) instalado" }
+catch { warn "OpenClaw instalado. Si 'openclaw' no responde, reiniciá PowerShell para tomar el PATH." }
 
 # ── 4. Verificar .env ─────────────────────────────────────────────────────────
 $envFile = "$REPO_DIR\.env"
