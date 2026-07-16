@@ -148,8 +148,20 @@ else
   info "Proveedor activo: Groq (llama-3.3-70b-versatile)"
 fi
 
-# 5. Instalar como systemd user service
-if command -v systemctl &>/dev/null && systemctl --user &>/dev/null 2>&1; then
+# 5. Arrancar el gateway (Windows: tarea programada; Linux: systemd user service)
+GW_IS_WIN=false
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) GW_IS_WIN=true ;; esac
+if $GW_IS_WIN; then
+  # En Windows/Git Bash no hay systemd. Registramos el gateway como TAREA PROGRAMADA
+  # (persiste aunque se cierre la terminal), igual que install.ps1. El proceso suelto
+  # en background era frágil y a veces ni arrancaba (síntoma: "Gateway service missing"
+  # al hacer 'openclaw gateway start').
+  info "Registrando el gateway como tarea de Windows..."
+  openclaw gateway install 2>&1 | grep -v "^$" || true
+  openclaw gateway start 2>/dev/null && \
+    info "Gateway iniciado (tarea de Windows)" || \
+    warn "No se pudo iniciar. Ejecutá: openclaw gateway install && openclaw gateway start"
+elif command -v systemctl &>/dev/null && systemctl --user &>/dev/null 2>&1; then
   if ! systemctl --user is-enabled openclaw-gateway.service &>/dev/null; then
     info "Instalando servicio systemd de usuario..."
     openclaw gateway install 2>&1 | grep -v "^$" || true
