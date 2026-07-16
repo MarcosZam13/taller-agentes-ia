@@ -63,12 +63,19 @@ check(
 
 // ─── 2. OpenClaw instalado ────────────────────────────────────────────────────
 console.log(head("2. OpenClaw"));
-import { execFileSync } from "child_process";
+import { execSync } from "child_process";
 
 let openclawOk = false;
 let openclawVer = "";
 try {
-  openclawVer = execFileSync("openclaw", ["--version"], { encoding: "utf8" }).trim();
+  // execSync corre a través del shell → en Windows resuelve `openclaw.cmd` vía PATHEXT.
+  // Con execFile("openclaw") daba un falso "no instalado" en Windows/Git Bash: el
+  // ejecutable real es openclaw.cmd, no el shim sin extensión, y Node no lo resuelve
+  // sin shell (aunque `openclaw --version` sí funcione al escribirlo en la terminal).
+  openclawVer = execSync("openclaw --version", {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
   openclawOk = true;
 } catch (_) {}
 check(
